@@ -7,6 +7,12 @@
 4. Trouble shooting: you may have to add some path to your environment variables.
    
    ex:`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/nvidia-396,export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/chingan/.mujoco/mujoco200/bin`
+   If encounter Python locale error:
+   ```
+   export LC_ALL="en_US.UTF-8"
+   export LC_CTYPE="en_US.UTF-8"
+   sudo dpkg-reconfigure locales
+   ```
 5. Install gym: 
    * Change the mujoco_py version in setup.py to 2.0.2.0a1
    * Install gym from source:
