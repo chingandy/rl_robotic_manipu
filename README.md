@@ -6,7 +6,11 @@
   `pip3 install -U 'mujoco-py==2.0.2.0a1'​`
 4. Trouble shooting: you may have to add some path to your environment variables.
    
-   ex:`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/nvidia-396,export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/chingan/.mujoco/mujoco200/bin`
+   ex:
+   ```
+   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/nvidia-396
+   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/chingan/.mujoco/mujoco200/bin`
+   ```
    If encounter Python locale error:
    ```
    export LC_ALL="en_US.UTF-8"
