@@ -9,7 +9,8 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
         utils.EzPickle.__init__(self) # some constructor
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
         # self.action_space = [[-0.0001, 0],[-0.01, 0],[0.0001, 0], [0.01, 0],[0 , -0.0001], [0, -0.01],[0, 0.0001], [0, 0.01] ]  # self-added
-        action_range = [-0.05, -0.0001, 0.0001, 0.05]
+        # action_range = [-0.05, -0.0001, 0.0001, 0.05]
+        action_range = [-0.05, 0.05]
         self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range]
         # add_range = [-0.5, 0.5]
         # self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range] + [[y, 0] for y in add_range] + [[0, y] for y in add_range]
