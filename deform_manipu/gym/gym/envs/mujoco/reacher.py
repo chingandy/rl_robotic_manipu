@@ -28,8 +28,9 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         vec = self.get_body_com("fingertip")-self.get_body_com("target")
         dis = np.linalg.norm(vec)
         delta_dis = dis - prev_dis
-        info = None
+        success = False
         gamma = 0.25
+
         # image = self.render(mode='rgb_array', width=256, height=256 ) # added by Andy, type: numpy.ndarray
 
         """ Reward function 1 """
@@ -61,7 +62,8 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         elif dis < 0.001:
             reward = 100
             done = True
-            return ob, reward, done, info
+            success = True
+            return ob, reward, done, success
         elif delta_dis < 0:
             reward = np.exp(-gamma * dis)
         else:
@@ -90,7 +92,7 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # if done:
         #     print("In def step.......", done)
         # info = "this is from my step" + str(done)
-        return ob, reward, done, info
+        return ob, reward, done, success
         ######################################
         # return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
 

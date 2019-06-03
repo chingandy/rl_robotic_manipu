@@ -129,7 +129,7 @@ class MujocoEnv(gym.Env):
             if mode == 'human':
                 self.viewer = mujoco_py.MjViewer(self.sim)
             elif mode == 'rgb_array' or mode == 'depth_array':
-                self.viewer = mujoco_py.MjRenderContextOffscreen(self.sim, -1)
+                self.viewer = mujoco_py.MjRenderContextOffscreen(self.sim, -10)
 
             self.viewer_setup()
             self._viewers[mode] = self.viewer

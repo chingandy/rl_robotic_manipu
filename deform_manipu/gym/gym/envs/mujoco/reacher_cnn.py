@@ -99,6 +99,7 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
         self.viewer.cam.lookat[0] = 0 # added by andy
         self.viewer.cam.lookat[1] = 0 # added by andy
         self.viewer.cam.lookat[2] = 0 # added by andy
+        self.viewer.cam.distance = 0.8
         self.viewer.cam.elevation = -90  # this denotes the direction of the viewer/ added by andy
         # print("#######",self.viewer.cam.lookat)
         # print(self.viewer.cam)
@@ -133,7 +134,7 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
         # print("fingertip: ", self.get_body_com("fingertip"))
         # print("target:", self.get_body_com("target"))
         # print(out)
-        image = self.render(mode='rgb_array', width=128, height=128 ) # added by Andy, type: numpy.ndarray
+        image = self.render(mode='rgb_array', width=256, height=256 ) # added by Andy, type: numpy.ndarray
         # return np.concatenate([
         #     np.cos(theta),
         #     np.sin(theta),
