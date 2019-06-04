@@ -70,7 +70,7 @@ class DQNAgent:
 	# Define two sets of inputs
         main_input = Input(shape=inshape)
         aux_input = Input(shape=(2,))
-        
+
         # The first branch operates on the main input
         x = Conv2D(64, kernel_size=5, strides=(2,2), activation='relu')(main_input)
         x = MaxPooling2D(pool_size=(2,2))(x)
@@ -82,11 +82,11 @@ class DQNAgent:
 
         # The second branch on the auxiliary input
         y = Dense(1, )(aux_input)
-        
+
         # Combine the ouput of the two branches
         merged_vector = concatenate([x, y])
 
-        # apply two FC layers and a regression prediction on the combined outputs 
+        # apply two FC layers and a regression prediction on the combined outputs
         output = Dense(4096, activation='relu')(merged_vector)
         output = Dense(256)(output)
         output = Dense(self.action_size)(output)
@@ -203,12 +203,13 @@ class DQNAgent:
         pylab.ylabel("Score")
         pylab.savefig("scores.png")
 
-if __name__ == "__main__":
+def main():
+
     env = gym.make('Reacher-v101') # Reacher-v101 environment is the edited version of Reacher-v0 adapted for CNN
     #Get state and action sizes from the environment
     state_size = env.observation_space.shape[0]
     action_size = len(env.action_space)
-#     action_size = env.action_space.n
+    print("State size: ", state_size)
     #Create agent, see the DQNAgent __init__ method for details
     agent = DQNAgent(state_size, env.action_space)
     # load the pre-trained model
@@ -234,22 +235,13 @@ if __name__ == "__main__":
             state = env.reset()
             #state = np.reshape(state, [1, state_size])
             test_states[i] = state
-            
+
             target_pos_test[i] = blob_detector(state)
         else:
-            #############################
-#             action = random.randrange(action_size)
 
             action_idx = random.randrange(action_size)
             action = env.action_space[action_idx]
-            ###################################
-#             if done:
-#                 print("Before Done: ", done)
             next_state, reward, done, info= env.step(action)
-#             if done:
-#                 print("Done: ", done)
-#                 print("Info: ", info)
-            #next_state = np.reshape(next_state, [1, state_size])
             test_states[i] = state
             target_pos_test[i] = blob_detector(state)
             state = next_state
@@ -260,31 +252,29 @@ if __name__ == "__main__":
         done = False
         score = 0
         state = env.reset() #Initialize/reset the environment
-        state = np.expand_dims(state, axis=0)
-        #state = np.reshape(state, [1, state_size]) #Reshape state so that to a 1 by state_size two-dimensional array ie. [x_1,x_2] to [[x_1,x_2]]
+        state = np.expand_dims(state, axis=0)#Reshape state so that to a 1 by state_size two-dimensional array ie. [x_1,x_2] to [[x_1,x_2]]
+        target, info = blob_detector(state)
+        if not info:
+            print("Detector failed!!!")
+            quit()
         #Compute Q values for plotting
-        #test_states = np.reshape(test_states, (agent.test_state_no, inshape[0], inshape[1], inshape[2])) # reshape to fit in the cnn model
         tmp = agent.model.predict([test_states, target_pos_test])
         max_q[e][:] = np.max(tmp, axis=1)
         max_q_mean[e] = np.mean(max_q[e][:])
         count = 0
         while not done:
-#             if count % 10 == 0:
-#                 print("counter: ", count)
-#             count += 1
+#
             if agent.render:
-                env.render() #Show cartpole animation
+                env.render()
 
             #Get action for the current state and go one step in environment
             ###################################
-#             action = agent.get_action(state)
-            state = np.reshape(state, (state.shape[0], inshape[0], inshape[1], inshape[2]))
-            target = blob_detector(state) 
+            # state = np.reshape(state, (state.shape[0], inshape[0], inshape[1], inshape[2]))
+            # target, info = blob_detector(state)
             action_idx = agent.get_action(state, target)
             action = env.action_space[action_idx]
             ###################################
             next_state, reward, done, _= env.step(action)
-            #next_state = np.reshape(next_state, [1, inshape[0], inshape[1], inshae]) #Reshape next_state similarly to state
             next_state = np.expand_dims(next_state, axis=0)
             #Save sample <s, a, r, s'> to the replay memory
             agent.append_sample(state, action, reward, next_state, done)
@@ -315,3 +305,5 @@ if __name__ == "__main__":
     # Save the model
     agent.save_model(path_to_model, path_to_target)
     env.close()
+if __name__ == '__main__':
+    main()
