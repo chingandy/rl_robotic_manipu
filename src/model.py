@@ -235,15 +235,19 @@ def main():
             state = env.reset()
             #state = np.reshape(state, [1, state_size])
             test_states[i] = state
+            blob_pos, info = blob_detector(state)
+            if not info:
+                print("Detector failed in collecting test states!!!")
 
-            target_pos_test[i] = blob_detector(state)
+            target_pos_test[i] = blob_pos
         else:
 
             action_idx = random.randrange(action_size)
             action = env.action_space[action_idx]
             next_state, reward, done, info= env.step(action)
             test_states[i] = state
-            target_pos_test[i] = blob_detector(state)
+            # target_pos_test[i] = blob_detector(state)
+            target_pos_test[i] = blob_pos
             state = next_state
 
 
