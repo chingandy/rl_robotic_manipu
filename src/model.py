@@ -15,8 +15,8 @@ from blob_detector import blob_detector
 import logging
 import parser
 logging.basicConfig(filename='logging.txt',level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+# os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
 
 EPISODES = 200  #Maximum number of episodes/ 1000
