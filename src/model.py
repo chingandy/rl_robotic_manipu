@@ -13,11 +13,13 @@ import keras
 import tensorflow as tf
 from blob_detector import blob_detector
 import logging
+import parser
 logging.basicConfig(filename='logging.txt',level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
-
-config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 2} )
-sess = tf.Session(config=config)
-keras.backend.set_session(sess)
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = arg.gpu
+# config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 2} )
+# sess = tf.Session(config=config)
+# keras.backend.set_session(sess)
 
 EPISODES = 1000  #Maximum number of episodes/ 1000
 inshape = (256, 256, 3)  # the size of images
