@@ -36,8 +36,13 @@ def blob_detector(im):
 
     # Detect blobs
     keypoints = detector.detect(im)
-
-    return np.array(keypoints[0].pt) if keypoints[0] else np.zeros((1,2))
+    try:
+        #if keypoints is not None:
+         #   print("target pos: ", keypoints[0].pt)  
+        return np.array(keypoints[0].pt)
+    except IndexError:
+        #print("Detector failed!!!!")
+        return np.zeros((1,2))
     # Draw detected blobs as red circles
     # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle
     # corresponds to the size of blob

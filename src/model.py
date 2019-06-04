@@ -4,13 +4,16 @@ import pylab
 import random
 import numpy as np
 from collections import deque
-from keras.layers import Dense, Conv2D, Flatten, MaxPooling2D, Input, Concatenate
+from keras.layers import Dense, Conv2D, Flatten, MaxPooling2D, Input, concatenate
 from keras.optimizers import Adam, rmsprop
-from keras.models import Sequential, load_model
+from keras.models import Sequential, load_model, Model
+from keras.utils import plot_model
 import os
 import keras
 import tensorflow as tf
 from blob_detector import blob_detector
+import logging
+logging.basicConfig(filename='logging.txt',level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
 
 config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 2} )
 sess = tf.Session(config=config)
@@ -63,36 +66,34 @@ class DQNAgent:
         #Edit the Neural Network model here
         #Tip: Consult https://keras.io/getting-started/sequential-model-guide/
     def build_model(self):
-        # architecture from the paper "3D simulation for robot arm control with deep q-learnin"
-        input = Input(shape=inshape)
+        # Architecture from the paper "3D simulation for robot arm control with deep q-learnin"
+	# Define two sets of inputs
+        main_input = Input(shape=inshape)
         aux_input = Input(shape=(2,))
-        x = Conv2D(64, kernel_size=5, strides=(2,2), activation='relu')(input)
+        
+        # The first branch operates on the main input
+        x = Conv2D(64, kernel_size=5, strides=(2,2), activation='relu')(main_input)
         x = MaxPooling2D(pool_size=(2,2))(x)
         x = Conv2D(32, kernel_size=5, strides=(2,2), activation='relu')(x)
         x = MaxPooling2D(pool_size=(2,2))(x)
         x = Conv2D(16, kernel_size=5, strides=(2,2), activation='relu')(x)
         x = MaxPooling2D(pool_size=(2,2))(x)
         x = Flatten()(x)
-        merged_vector = Concatenate([x, aux_input], axis=-1)
+
+        # The second branch on the auxiliary input
+        y = Dense(1, )(aux_input)
+        
+        # Combine the ouput of the two branches
+        merged_vector = concatenate([x, y])
+
+        # apply two FC layers and a regression prediction on the combined outputs 
         output = Dense(4096, activation='relu')(merged_vector)
         output = Dense(256)(output)
         output = Dense(self.action_size)(output)
-        model = Model(inputs=[input, aux_input], output=output)
-        # model = Sequential()
-        # model.add(Conv2D(64, kernel_size=5, strides=(2,2), activation='relu', input_shape=inshape))
-        # model.add(MaxPooling2D(pool_size=(2,2)))
-        # model.add(Conv2D(32, kernel_size=5, strides=(2,2), activation='relu'))
-        # model.add(MaxPooling2D(pool_size=(2,2)))
-        # model.add(Conv2D(16, kernel_size=5, strides=(2,2), activation='relu'))
-        # model.add(MaxPooling2D(pool_size=(2,2)))
-        # model.add(Flatten())
-        # model.add(Dense(4096, activation='relu'))
-        # model.add(Dense(256))
-        # model.add(Dense(self.action_size))
-        # model.summary()
-
+        model = Model(inputs=[main_input, aux_input], output=output)
+        opt = Adam(lr=self.learning_rate)
         model.compile(loss='mse', optimizer=Adam(lr=self.learning_rate))
-
+       # plot_model(model, to_file='plot_model.png')
         return model
 ###############################################################################
 ###############################################################################
@@ -102,7 +103,7 @@ class DQNAgent:
         self.target_model.set_weights(self.model.get_weights())
 
     #Get action from model using epsilon-greedy policy
-    def get_action(self, state):
+    def get_action(self, state, target):
 ###############################################################################
 ###############################################################################
         #Insert your e-greedy policy code here
@@ -111,7 +112,7 @@ class DQNAgent:
         if np.random.rand() <= self.epsilon:
             action =  random.randrange(self.action_size)
         else:
-            q_value = self.model.predict(state)
+            q_value = self.model.predict([state, target])
             action =  np.argmax(q_value[0])
         # action = random.randrange(self.action_size)
         return action
@@ -206,7 +207,6 @@ if __name__ == "__main__":
     env = gym.make('Reacher-v101') # Reacher-v101 environment is the edited version of Reacher-v0 adapted for CNN
     #Get state and action sizes from the environment
     state_size = env.observation_space.shape[0]
-    print("state size: ", state_size)
     action_size = len(env.action_space)
 #     action_size = env.action_space.n
     #Create agent, see the DQNAgent __init__ method for details
@@ -222,7 +222,8 @@ if __name__ == "__main__":
 
 
     # Collect test states for plotting Q values using uniform random policy
-    test_states = np.zeros((agent.test_state_no, state_size))
+    test_states = np.zeros((agent.test_state_no, inshape[0], inshape[1], inshape[2]))
+    target_pos_test = np.zeros((agent.test_state_no, 2))
     max_q = np.zeros((EPISODES, agent.test_state_no))
     max_q_mean = np.zeros((EPISODES,1))
 
@@ -231,8 +232,10 @@ if __name__ == "__main__":
         if done:
             done = False
             state = env.reset()
-            state = np.reshape(state, [1, state_size])
+            #state = np.reshape(state, [1, state_size])
             test_states[i] = state
+            
+            target_pos_test[i] = blob_detector(state)
         else:
             #############################
 #             action = random.randrange(action_size)
@@ -246,8 +249,9 @@ if __name__ == "__main__":
 #             if done:
 #                 print("Done: ", done)
 #                 print("Info: ", info)
-            next_state = np.reshape(next_state, [1, state_size])
+            #next_state = np.reshape(next_state, [1, state_size])
             test_states[i] = state
+            target_pos_test[i] = blob_detector(state)
             state = next_state
 
 
@@ -256,10 +260,11 @@ if __name__ == "__main__":
         done = False
         score = 0
         state = env.reset() #Initialize/reset the environment
-        state = np.reshape(state, [1, state_size]) #Reshape state so that to a 1 by state_size two-dimensional array ie. [x_1,x_2] to [[x_1,x_2]]
+        state = np.expand_dims(state, axis=0)
+        #state = np.reshape(state, [1, state_size]) #Reshape state so that to a 1 by state_size two-dimensional array ie. [x_1,x_2] to [[x_1,x_2]]
         #Compute Q values for plotting
-        test_states = np.reshape(test_states, (agent.test_state_no, inshape[0], inshape[1], inshape[2])) # reshape to fit in the cnn model
-        tmp = agent.model.predict(test_states)
+        #test_states = np.reshape(test_states, (agent.test_state_no, inshape[0], inshape[1], inshape[2])) # reshape to fit in the cnn model
+        tmp = agent.model.predict([test_states, target_pos_test])
         max_q[e][:] = np.max(tmp, axis=1)
         max_q_mean[e] = np.mean(max_q[e][:])
         count = 0
@@ -274,7 +279,8 @@ if __name__ == "__main__":
             ###################################
 #             action = agent.get_action(state)
             state = np.reshape(state, (state.shape[0], inshape[0], inshape[1], inshape[2]))
-            action_idx = agent.get_action(state)
+            target = blob_detector(state) 
+            action_idx = agent.get_action(state, target)
             action = env.action_space[action_idx]
             ###################################
             next_state, reward, done, _= env.step(action)
