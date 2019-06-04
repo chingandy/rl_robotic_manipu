@@ -15,11 +15,13 @@ from blob_detector import blob_detector
 import logging
 logging.basicConfig(filename='logging.txt',level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
 
-config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 2} )
-sess = tf.Session(config=config)
-keras.backend.set_session(sess)
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID" 
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,32,3"
+#config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 2} )
+#sess = tf.Session(config=config)
+#keras.backend.set_session(sess)
 
-EPISODES = 1000  #Maximum number of episodes/ 1000
+EPISODES = 200  #Maximum number of episodes/ 1000
 inshape = (256, 256, 3)  # the size of images
 #DQN Agent for the reacher-v2
 #Q function approximation with NN, experience replay, and target network
@@ -119,8 +121,8 @@ class DQNAgent:
 ###############################################################################
 ###############################################################################
     #Save sample <s,a,r,s'> to the replay memory
-    def append_sample(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done)) #Add sample to the end of the list
+    def append_sample(self, state, action, reward, next_state, done, obj_pos):
+        self.memory.append((state, action, reward, next_state, done, obj_pos)) #Add sample to the end of the list
 
     #Sample <s,a,r,s'> from replay memory
     def train_model(self):
@@ -145,10 +147,10 @@ class DQNAgent:
             update_target[i] = mini_batch[i][3] #Allocate s'(i) for the target network array from iteration i in the batch
             done.append(mini_batch[i][4])  #Store done(i)
             """ blob detect"""
-            target_pos[i] = blob_detector(update_input[i])
+            target_pos[i] = mini_batch[i][5] 
 
-        target = self.model.predict(update_input, target_pos) #Generate target values for training the inner loop network using the network model
-        target_val = self.target_model.predict(update_target, target_pos) #Generate the target values for training the outer loop target network
+        target = self.model.predict([update_input, target_pos]) #Generate target values for training the inner loop network using the network model
+        target_val = self.target_model.predict([update_target, target_pos]) #Generate the target values for training the outer loop target network
         #Q Learning: get maximum Q value at s' from target network
 ###############################################################################
 ###############################################################################
@@ -246,7 +248,9 @@ def main():
             action = env.action_space[action_idx]
             next_state, reward, done, info= env.step(action)
             test_states[i] = state
-            # target_pos_test[i] = blob_detector(state)
+            #target_pos_test[i] = blob_detector(state)
+            if not info:
+                blob_pos, info = blob_detector(state)
             target_pos_test[i] = blob_pos
             state = next_state
 
@@ -257,10 +261,10 @@ def main():
         score = 0
         state = env.reset() #Initialize/reset the environment
         state = np.expand_dims(state, axis=0)#Reshape state so that to a 1 by state_size two-dimensional array ie. [x_1,x_2] to [[x_1,x_2]]
-        target, info = blob_detector(state)
+        target_pos, info = blob_detector(state)
         if not info:
             print("Detector failed!!!")
-            quit()
+        
         #Compute Q values for plotting
         tmp = agent.model.predict([test_states, target_pos_test])
         max_q[e][:] = np.max(tmp, axis=1)
@@ -274,14 +278,16 @@ def main():
             #Get action for the current state and go one step in environment
             ###################################
             # state = np.reshape(state, (state.shape[0], inshape[0], inshape[1], inshape[2]))
-            # target, info = blob_detector(state)
-            action_idx = agent.get_action(state, target)
+            if not info:
+                target_pos, info = blob_detector(state)
+                
+            action_idx = agent.get_action(state, target_pos)
             action = env.action_space[action_idx]
             ###################################
             next_state, reward, done, _= env.step(action)
             next_state = np.expand_dims(next_state, axis=0)
             #Save sample <s, a, r, s'> to the replay memory
-            agent.append_sample(state, action, reward, next_state, done)
+            agent.append_sample(state, action, reward, next_state, done, target_pos)
             #Training step
             agent.train_model()
             score += reward #Store episodic reward
