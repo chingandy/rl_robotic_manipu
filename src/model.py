@@ -103,7 +103,7 @@ class DQNAgent:
         self.target_model.set_weights(self.model.get_weights())
 
     #Get action from model using epsilon-greedy policy
-    def get_action(self, state, target):
+    def get_action(self, state, obj_pos):
 ###############################################################################
 ###############################################################################
         #Insert your e-greedy policy code here
@@ -112,7 +112,8 @@ class DQNAgent:
         if np.random.rand() <= self.epsilon:
             action =  random.randrange(self.action_size)
         else:
-            q_value = self.model.predict([state, target])
+            obj_pos = obj_pos.reshape((2,1)).T  # reshape is needed to make model.predict() work
+            q_value = self.model.predict([state, obj_pos])
             action =  np.argmax(q_value[0])
         # action = random.randrange(self.action_size)
         return action
@@ -259,8 +260,8 @@ def main():
         score = 0
         state = env.reset() #Initialize/reset the environment
         state = np.expand_dims(state, axis=0)#Reshape state so that to a 1 by state_size two-dimensional array ie. [x_1,x_2] to [[x_1,x_2]]
-        target_pos, info = blob_detector(state)
-        if not info:
+        obj_pos, success = blob_detector(state)
+        if not success:
             print("Detector failed!!!")
 
         #Compute Q values for plotting
@@ -276,16 +277,16 @@ def main():
             #Get action for the current state and go one step in environment
             ###################################
             # state = np.reshape(state, (state.shape[0], inshape[0], inshape[1], inshape[2]))
-            if not info:
-                target_pos, info = blob_detector(state)
+            if not success:
+                obj_pos, success = blob_detector(state)
 
-            action_idx = agent.get_action(state, target_pos)
+            action_idx = agent.get_action(state, obj_pos)
             action = env.action_space[action_idx]
             ###################################
             next_state, reward, done, _= env.step(action)
             next_state = np.expand_dims(next_state, axis=0)
             #Save sample <s, a, r, s'> to the replay memory
-            agent.append_sample(state, action, reward, next_state, done, target_pos)
+            agent.append_sample(state, action, reward, next_state, done, obj_pos)
             #Training step
             agent.train_model()
             score += reward #Store episodic reward
