@@ -15,14 +15,20 @@ from blob_detector import blob_detector
 import logging
 import parser
 logging.basicConfig(filename='logging.txt',level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
-# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
+
+import  keras.backend.tensorflow_backend as K
 
 EPISODES = 200  #Maximum number of episodes/ 1000
 inshape = (256, 256, 3)  # the size of images
 #DQN Agent for the reacher-v2
 #Q function approximation with NN, experience replay, and target network
+config = tf.ConfigProto(allow_soft_placement=True, device_count={'GPU': 1, 'CPU':4})
+config.gpu_options.visible_device_list= '1' #only see the gpu 1
+config.gpu_options.per_process_gpu_memory_fraction = 0.9
+config.gpu_options.allow_growth = False
+sess = tf.Session(config=config)
+K.set_session(sess)
 class DQNAgent:
     #Constructor for the agent (invoked when DQN is first called in main)
     def __init__(self, state_size, action_space):
@@ -103,7 +109,7 @@ class DQNAgent:
         self.target_model.set_weights(self.model.get_weights())
 
     #Get action from model using epsilon-greedy policy
-    def get_action(self, state, target):
+    def get_action(self, state, obj_pos):
 ###############################################################################
 ###############################################################################
         #Insert your e-greedy policy code here
@@ -112,7 +118,8 @@ class DQNAgent:
         if np.random.rand() <= self.epsilon:
             action =  random.randrange(self.action_size)
         else:
-            q_value = self.model.predict([state, target])
+            obj_pos = obj_pos.reshape((2,1)).T  # reshape is needed to make model.predict() work
+            q_value = self.model.predict([state, obj_pos])
             action =  np.argmax(q_value[0])
         # action = random.randrange(self.action_size)
         return action
@@ -259,8 +266,8 @@ def main():
         score = 0
         state = env.reset() #Initialize/reset the environment
         state = np.expand_dims(state, axis=0)#Reshape state so that to a 1 by state_size two-dimensional array ie. [x_1,x_2] to [[x_1,x_2]]
-        target_pos, info = blob_detector(state)
-        if not info:
+        obj_pos, success = blob_detector(state)
+        if not success:
             print("Detector failed!!!")
 
         #Compute Q values for plotting
@@ -276,16 +283,16 @@ def main():
             #Get action for the current state and go one step in environment
             ###################################
             # state = np.reshape(state, (state.shape[0], inshape[0], inshape[1], inshape[2]))
-            if not info:
-                target_pos, info = blob_detector(state)
+            if not success:
+                obj_pos, success = blob_detector(state)
 
-            action_idx = agent.get_action(state, target_pos)
+            action_idx = agent.get_action(state, obj_pos)
             action = env.action_space[action_idx]
             ###################################
             next_state, reward, done, _= env.step(action)
             next_state = np.expand_dims(next_state, axis=0)
             #Save sample <s, a, r, s'> to the replay memory
-            agent.append_sample(state, action, reward, next_state, done, target_pos)
+            agent.append_sample(state, action, reward, next_state, done, obj_pos)
             #Training step
             agent.train_model()
             score += reward #Store episodic reward
