@@ -6,7 +6,11 @@ def blob_detector(im):
     # Read image
     # im = cv2.imread("test.png", cv2.IMREAD_GRAYSCALE)
     # im = cv2.imread("blobTest.jpg", cv2.IMREAD_GRAYSCALE)
-
+    
+    if im.ndim != 3:
+        print("Current img: ", im.shape)
+        im = im[0]
+        print("After: ", im.shape)
     """ Set up SimpleBlobDetector parameters """
     params = cv2.SimpleBlobDetector_Params()
 
@@ -36,15 +40,15 @@ def blob_detector(im):
 
     # Detect blobs
     keypoints = detector.detect(im)
-    info = True
+    success = True
     try:
-        #if keypoints is not None:
-         #   print("target pos: ", keypoints[0].pt)
-        return np.array(keypoints[0].pt), info
+        if keypoints is not None:
+            print("target pos: ", keypoints[0].pt)
+        return np.array(keypoints[0].pt), success
     except IndexError:
-        # print("Detector failed!!!!")
-        info = False
-        return np.zeros((1,2)), info
+        print("Detector failed!!!!")
+        success = False
+        return np.zeros((1,2)), success
     # Draw detected blobs as red circles
     # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle
     # corresponds to the size of blob

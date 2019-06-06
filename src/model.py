@@ -16,6 +16,8 @@ import logging
 import parser
 logging.basicConfig(filename='logging.txt',level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
 
+# TODO: still could not make the model utilize the memory of gpus
+import  keras.backend.tensorflow_backend as K
 
 import  keras.backend.tensorflow_backend as K
 
@@ -197,7 +199,7 @@ class DQNAgent:
             return
 
     #Plots the score per episode as well as the maximum q value per episode, averaged over precollected states.
-    def plot_data(self, episodes, scores, max_q_mean):
+    def plot_data(self, episodes, scores, max_q_mean, success_cnt):
         pylab.figure(0)
         pylab.plot(episodes, max_q_mean, 'b')
         pylab.xlabel("Episodes")
@@ -210,8 +212,15 @@ class DQNAgent:
         pylab.ylabel("Score")
         pylab.savefig("scores.png")
 
-def main():
-
+        pylab.figure(2)
+        pylab.plot(episodes, success_cnt, 'b')
+        pylab.xlabel("Episodes")
+        pylab.ylabel("Successes")
+        pylab.savefig("successes.png")
+def main(args):
+    EPISODES = args.episodes
+    print("#"*50)
+    print("# of episodes: ", EPISODES)
     env = gym.make('Reacher-v101') # Reacher-v101 environment is the edited version of Reacher-v0 adapted for CNN
     #Get state and action sizes from the environment
     state_size = env.observation_space.shape[0]
@@ -260,7 +269,7 @@ def main():
             state = next_state
 
 
-    scores, episodes = [], [] #Create dynamically growing score and episode counters
+    scores, episodes, success_cnt = [], [], [] #Create dynamically growing score and episode counters
     for e in range(EPISODES):
         done = False
         score = 0
@@ -289,7 +298,7 @@ def main():
             action_idx = agent.get_action(state, obj_pos)
             action = env.action_space[action_idx]
             ###################################
-            next_state, reward, done, _= env.step(action)
+            next_state, reward, done, touch= env.step(action)
             next_state = np.expand_dims(next_state, axis=0)
             #Save sample <s, a, r, s'> to the replay memory
             agent.append_sample(state, action, reward, next_state, done, obj_pos)
@@ -305,6 +314,9 @@ def main():
                 #Plot the play time for every episode
                 scores.append(score)
                 episodes.append(e)
+                if touch: # when the current episode is done because the target is touched
+                    count += 1
+                success_cnt.append(count)
 
                 print("episode:", e, "  score:", score," q_value:", max_q_mean[e],"  memory length:",
                       len(agent.memory))
@@ -316,9 +328,9 @@ def main():
                         print("solved after", e-100, "episodes")
                         agent.plot_data(episodes,scores,max_q_mean[:e+1])
                         sys.exit()
-    agent.plot_data(episodes,scores,max_q_mean)
+    agent.plot_data(episodes,scores, max_q_mean, success_cnt )
     # Save the model
     agent.save_model(path_to_model, path_to_target)
     env.close()
 if __name__ == '__main__':
-    main()
+    main(parser.args)
