@@ -3,8 +3,9 @@ import os
 parser = argparse.ArgumentParser()
 # parser.add_argument("square", type=int,
 #                     help="display a square of a given number")
-parser.add_argument("-g", "--gpu",
-                    help="specify the ids of gpu is going to be used")
+parser.add_argument("-g", "--gpu", help="specify the ids of gpu is going to be used")
+
+parser.add_argument("-e", "--episodes", type=int,  help="specify the number of episodes")
 args = parser.parse_args()
 # answer = args.square**2
 if args.gpu:

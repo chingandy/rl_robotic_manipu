@@ -14,15 +14,23 @@ import tensorflow as tf
 from blob_detector import blob_detector
 import logging
 import parser
-logging.basicConfig(filename='logging.txt',level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
-# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+#logging.basicConfig(filename='logging.txt',level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
 
+# TODO: still could not make the model utilize the memory of gpus 
+import  keras.backend.tensorflow_backend as K
 
-EPISODES = 200  #Maximum number of episodes/ 1000
+config = tf.ConfigProto(allow_soft_placement=True)
+#config = tf.ConfigProto(allow_soft_placement=True, device_count={'GPU': 1, 'CPU':4})
+#config.gpu_options.per_process_gpu_memory_fraction = 0.9
+config.gpu_options.allow_growth = True
+sess = tf.Session(config=config)
+K.set_session(sess)
+
+EPISODES = 1000  # Default of the number of episodes:  1000
 inshape = (256, 256, 3)  # the size of images
 #DQN Agent for the reacher-v2
 #Q function approximation with NN, experience replay, and target network
+
 class DQNAgent:
     #Constructor for the agent (invoked when DQN is first called in main)
     def __init__(self, state_size, action_space):
@@ -191,7 +199,7 @@ class DQNAgent:
             return
 
     #Plots the score per episode as well as the maximum q value per episode, averaged over precollected states.
-    def plot_data(self, episodes, scores, max_q_mean):
+    def plot_data(self, episodes, scores, max_q_mean, success_cnt):
         pylab.figure(0)
         pylab.plot(episodes, max_q_mean, 'b')
         pylab.xlabel("Episodes")
@@ -204,8 +212,15 @@ class DQNAgent:
         pylab.ylabel("Score")
         pylab.savefig("scores.png")
 
-def main():
-
+        pylab.figure(2)
+        pylab.plot(episodes, success_cnt, 'b')
+        pylab.xlabel("Episodes")
+        pylab.ylabel("Successes")
+        pylab.savefig("successes.png")
+def main(args):
+    EPISODES = args.episodes
+    print("#"*50)
+    print("# of episodes: ", EPISODES)
     env = gym.make('Reacher-v101') # Reacher-v101 environment is the edited version of Reacher-v0 adapted for CNN
     #Get state and action sizes from the environment
     state_size = env.observation_space.shape[0]
@@ -254,7 +269,7 @@ def main():
             state = next_state
 
 
-    scores, episodes = [], [] #Create dynamically growing score and episode counters
+    scores, episodes, success_cnt = [], [], [] #Create dynamically growing score and episode counters
     for e in range(EPISODES):
         done = False
         score = 0
@@ -277,13 +292,13 @@ def main():
             #Get action for the current state and go one step in environment
             ###################################
             # state = np.reshape(state, (state.shape[0], inshape[0], inshape[1], inshape[2]))
-            if not success:
+            if not success:  # detect again if the previous detection fails
                 obj_pos, success = blob_detector(state)
 
             action_idx = agent.get_action(state, obj_pos)
             action = env.action_space[action_idx]
             ###################################
-            next_state, reward, done, _= env.step(action)
+            next_state, reward, done, touch= env.step(action)
             next_state = np.expand_dims(next_state, axis=0)
             #Save sample <s, a, r, s'> to the replay memory
             agent.append_sample(state, action, reward, next_state, done, obj_pos)
@@ -299,6 +314,9 @@ def main():
                 #Plot the play time for every episode
                 scores.append(score)
                 episodes.append(e)
+                if touch: # when the current episode is done because the target is touched
+                    count += 1
+                success_cnt.append(count)
 
                 print("episode:", e, "  score:", score," q_value:", max_q_mean[e],"  memory length:",
                       len(agent.memory))
@@ -310,9 +328,15 @@ def main():
                         print("solved after", e-100, "episodes")
                         agent.plot_data(episodes,scores,max_q_mean[:e+1])
                         sys.exit()
-    agent.plot_data(episodes,scores,max_q_mean)
+    agent.plot_data(episodes,scores, max_q_mean, success_cnt )
     # Save the model
     agent.save_model(path_to_model, path_to_target)
     env.close()
 if __name__ == '__main__':
-    main()
+    main(parser.args)
+
+
+
+
+
+
