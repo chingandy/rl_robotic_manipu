@@ -15,16 +15,16 @@ from blob_detector import blob_detector
 import logging
 import parser
 #logging.basicConfig(filename='logging.txt',level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
-
 # TODO: still could not make the model utilize the memory of gpus 
 import  keras.backend.tensorflow_backend as K
 
-config = tf.ConfigProto(allow_soft_placement=True)
+#config = tf.ConfigProto(allow_soft_placement=True)
 #config = tf.ConfigProto(allow_soft_placement=True, device_count={'GPU': 1, 'CPU':4})
 #config.gpu_options.per_process_gpu_memory_fraction = 0.9
-config.gpu_options.allow_growth = True
-sess = tf.Session(config=config)
-K.set_session(sess)
+#config.gpu_options.allow_growth = True
+#sess = tf.Session(config=config)
+#K.set_session(sess)
+
 
 EPISODES = 1000  # Default of the number of episodes:  1000
 inshape = (256, 256, 3)  # the size of images

@@ -111,7 +111,7 @@ class DQNAgent:
         self.target_model.set_weights(self.model.get_weights())
 
     #Get action from model using epsilon-greedy policy
-    def get_action(self, state, obj_pos):
+    def get_action(self, state):
 ###############################################################################
 ###############################################################################
         #Insert your e-greedy policy code here
@@ -298,7 +298,7 @@ def main(args):
             # if not success:  # detect again if the previous detection fails
             #     obj_pos, success = blob_detector(state)
 
-            action_idx = agent.get_action(state, obj_pos)
+            action_idx = agent.get_action(state)
             action = env.action_space[action_idx]
             ###################################
             next_state, reward, done, touch= env.step(action)
