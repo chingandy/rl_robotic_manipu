@@ -28,8 +28,9 @@ import  keras.backend.tensorflow_backend as K
 
 EPISODES = 1000  # Default of the number of episodes:  1000
 inshape = (256, 256, 3)  # the size of images
+random.seed(1)  # fix the random seed
 #DQN Agent for the reacher-v2
-#Q function approximation with NN, experience replay, and target network
+#Q function approximation with CNN, experience replay, and target network
 
 class DQNAgent:
     #Constructor for the agent (invoked when DQN is first called in main)
