@@ -28,6 +28,8 @@ K.set_session(sess)
 
 EPISODES = 1000  # Default of the number of episodes:  1000
 inshape = (256, 256, 3)  # the size of images
+random.seed(1)
+
 #DQN Agent for the reacher-v2
 #Q function approximation with NN, experience replay, and target network
 
@@ -204,19 +206,19 @@ class DQNAgent:
         pylab.plot(episodes, max_q_mean, 'b')
         pylab.xlabel("Episodes")
         pylab.ylabel("Average Q Value")
-        pylab.savefig("qvalues.png")
+        pylab.savefig("./pic/qvalues.png")
 
         pylab.figure(1)
         pylab.plot(episodes, scores, 'b')
         pylab.xlabel("Episodes")
         pylab.ylabel("Score")
-        pylab.savefig("scores.png")
+        pylab.savefig("./pic/scores.png")
 
         pylab.figure(2)
         pylab.plot(episodes, success_cnt, 'b')
         pylab.xlabel("Episodes")
         pylab.ylabel("Successes")
-        pylab.savefig("successes.png")
+        pylab.savefig("./pic/successes.png")
 def main(args):
     EPISODES = args.episodes
     print("#"*50)
