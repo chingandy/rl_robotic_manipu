@@ -5,7 +5,7 @@
 3. Install MuJoCo:
   `pip3 install -U 'mujoco-py==2.0.2.0a1'​`
 4. Trouble shooting: you may have to add some path to your environment variables.
-   
+
    ex:
    ```
    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/nvidia-396
@@ -17,7 +17,7 @@
    export LC_CTYPE="en_US.UTF-8"
    sudo dpkg-reconfigure locales
    ```
-5. Install gym: 
+5. Install gym:
    * Change the mujoco_py version in setup.py to 2.0.2.0a1
    * Install gym from source:
      `pip3 install -e '.[mujoco]'`
@@ -26,7 +26,7 @@ First, import the module `wrappers`
 ```
 from gym import wrappers
 from time import time
-``` 
+```
 Then, after create the environment, include the line as the following:
 ```
 env = gym.make(ENV_NAME)
@@ -35,7 +35,7 @@ env = wrappers.Monitor(env, './videos/' + str(time()) + '/')
 The mp4 files will save to `./videos`.
 
 We can also include the argument `force=True` to replace your existing recording with the current recording.
-``` 
+```
 env = wrappers.Monitor(env, './videos/' + str(time()) + '/')
 ```
 problem: this seems to affect the setting of the customized environment.
@@ -53,8 +53,6 @@ Traceback (most recent call last):
     raise error.Error("Tried to reset environment which is not done. While the monitor is active for {}, you cannot call reset() unless the episode is over.".format(self.env_id))
 gym.error.Error: Tried to reset environment which is not done. While the monitor is active for Reacher-v101, you cannot call reset() unless the episode is over.
 ```
+## How to change the max steps per episode?
 
-
-
-
-
+You can find the variable `max_episode_steps` in the directory `gym/gym/envs/__init__.py`.
