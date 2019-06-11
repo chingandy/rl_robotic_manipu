@@ -14,6 +14,10 @@ import tensorflow as tf
 from blob_detector import blob_detector
 import logging
 import parser
+from gym import wrappers
+from time import time
+
+
 #logging.basicConfig(filename='logging.txt',level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
 # TODO: still could not make the model utilize the memory of gpus 
 import  keras.backend.tensorflow_backend as K
@@ -126,6 +130,14 @@ class DQNAgent:
             action =  np.argmax(q_value[0])
         # action = random.randrange(self.action_size)
         return action
+    
+    def get_test_action(self, state, obj_pos):
+###############################################################################
+###############################################################################
+        obj_pos = obj_pos.reshape((2,1)).T  # reshape is needed to make model.predict() work
+        q_value = self.model.predict([state, obj_pos])
+        action =  np.argmax(q_value[0])
+        return action
 ###############################################################################
 ###############################################################################
     #Save sample <s,a,r,s'> to the replay memory
@@ -222,6 +234,7 @@ def main(args):
     EPISODES = args.episodes
     print("#"*50)
     print("# of episodes: ", EPISODES)
+
     env = gym.make('Reacher-v101') # Reacher-v101 environment is the edited version of Reacher-v0 adapted for CNN
     #Get state and action sizes from the environment
     state_size = env.observation_space.shape[0]
@@ -272,9 +285,10 @@ def main(args):
 
     scores, episodes, success_cnt = [], [], [] #Create dynamically growing score and episode counters
     for e in range(EPISODES):
-        done = False
+        #done = False
         score = 0
         state = env.reset() #Initialize/reset the environment
+        done = False
         state = np.expand_dims(state, axis=0)#Reshape state so that to a 1 by state_size two-dimensional array ie. [x_1,x_2] to [[x_1,x_2]]
         obj_pos, success = blob_detector(state)
         if not success:
@@ -333,8 +347,59 @@ def main(args):
     # Save the model
     agent.save_model(path_to_model, path_to_target)
     env.close()
+
+
+def test(args):
+    env = gym.make("Reacher-v101")
+    env = wrappers.Monitor(env, './videos/' + str(time()) + '/')
+    
+    
+    #Create agent, see the DQNAgent __init__ method for details
+    state_size = None
+    agent = DQNAgent(state_size, env.action_space)
+    # load the pre-trained model
+    path_to_model = 'model_cnn.h5'
+    path_to_target = 'target_model_cnn.h5'
+    if os.path.isfile(path_to_model) and os.path.isfile(path_to_target):
+        print("Loading the pre-trained model......")
+        agent.restore_model(path_to_model, path_to_target)
+    else:
+        print("Pre-trained model doesn't exist.")
+
+    #env = wrappers.Monitor(env, './videos/' + str(time()) + '/', video_callable=do_record)
+    test_rewards = []
+    test_start = time()
+    test_steps = 0
+    for iteration in range(1, 1 + args.episodes):
+        print("Iter: ", iteration)
+        steps = 0
+        state = env.reset()
+        state = np.expand_dims(state, axis=0)#Reshape state so that to a 1 by state_size two-dimensional array ie. [x_1,x_2] to [[x_1,x_2]]
+        obj_pos, success = blob_detector(state)
+        if not success:
+            print("Detector failed, will detect again!")
+        iter_rewards = 0.0
+        done = False
+        while not done:
+            steps += 1
+            test_steps += 1
+            if not success:
+                obj_pos, success = blob_detector(state)
+            action = agent.get_test_action(state, obj_pos)  # always choose the optimal action
+            state, reward, done, _ = env.step(action)
+            state = np.expand_dims(state, axis=0)#Reshape state so that to a 1 by state_size two-dimensional array ie. [x_1,x_2] to [[x_1,x_2]]
+            iter_rewards += reward
+        test_rewards.append(iter_rewards)
+        print("Total steps: ", steps)
+    #print_stats('Test', test_rewards, args.n_test_iter,
+                #time() - test_start, test_steps, 0, agent)
+    return test_rewards 
 if __name__ == '__main__':
-    main(parser.args)
+    if parser.args.test:
+        reward = test(parser.args)
+        print("Reward: ", reward)
+    else:
+        main(parser.args)
 
 
 
