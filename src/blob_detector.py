@@ -42,8 +42,8 @@ def blob_detector(im):
     keypoints = detector.detect(im)
     success = True
     try:
-        if keypoints is not None:
-            print("target pos: ", keypoints[0].pt)
+        #if keypoints is not None:
+        #    print("target pos: ", keypoints[0].pt)
         return np.array(keypoints[0].pt), success
     except IndexError:
         print("Detector failed!!!!")
