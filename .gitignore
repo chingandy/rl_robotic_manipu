@@ -1,6 +1,14 @@
 
 # Created by https://www.gitignore.io/api/python
 
+
+# models files
+*.h5
+*.png
+*.zip
+videos/
+
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -105,3 +113,10 @@ venv.bak/
 # End of https://www.gitignore.io/api/python
 
 # Generated using ignr.py - github.com/Antrikshy/ignr.py
+
+
+# self-defined files
+result/
+
+
+

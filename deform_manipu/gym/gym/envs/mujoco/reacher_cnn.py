@@ -10,8 +10,8 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
         # self.action_space = [[-0.0001, 0],[-0.01, 0],[0.0001, 0], [0.01, 0],[0 , -0.0001], [0, -0.01],[0, 0.0001], [0, 0.01] ]  # self-added
         # action_range = [-0.05, -0.0001, 0.0001, 0.05]
-        action_range = [-0.0005, 0.0005]
-        self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range] + [[0, 0]]
+        action_range = [-0.01, 0.01]
+        self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range]
         # add_range = [-0.5, 0.5]
         # self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range] + [[y, 0] for y in add_range] + [[0, y] for y in add_range]
 
@@ -30,53 +30,53 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
         delta_dis = dis - prev_dis
         touch = False # specify if the target is touched or not
         gamma = 0.25
-
+        done = False
+        
 
         """ Reward function 1 """
-        # if delta_dis > 0:
-        #     reward = -1
-        # elif dis < 0.001:
-        #     reward = 100
-        #     done = True
-        #     return ob, reward, done, info
-        # elif delta_dis < 0:
-        #     reward = 1
-        # else:
-        #     reward = 0
-        # self.rewards.append(reward)
-        # # print("######rewards log: ", self.rewards)
-        # done = False
-        # if len(self.rewards) < 3:
-        #     pass
-        # elif sum(self.rewards) < -1:
-        #     done = True
-        # else:
-        #     done = False
+        if delta_dis > 0:
+            reward = -1
+        elif dis < 0.001:
+            reward = 100
+            done = True
+            touch = True
+            return ob, reward, done, touch
+        elif delta_dis < 0:
+            reward = 1
+        else:
+            reward = 0
+        self.rewards.append(reward)
+
+        if len(self.rewards) < 3:
+            pass
+        elif sum(self.rewards) < -1:
+            done = True
+        else:
+            done = False
         """ Reward function 2 """
         # if dis < 0.02:
         #     print("@"*10)
         #     print("Distance: ", dis)
-        if delta_dis > 0:
-            reward = - np.exp(gamma * dis)
-        elif dis < 0.001:
-            reward = 100
-            touch = True
-            done = True
-            return ob, reward, done, touch
-        elif delta_dis < 0:
-            reward = np.exp(-gamma * dis)
-        else:
-            reward = 0
+        #if delta_dis > 0:
+        #    reward = - np.exp(gamma * dis)
+        #elif dis < 0.001:
+        #    reward = 100
+        #    touch = True
+        #    done = True
+        #    return ob, reward, done, touch
+        #elif delta_dis < 0:
+        #    reward = np.exp(-gamma * dis)
+        #else:
+        #    reward = 0
 
-        self.rewards.append(reward)
+        #self.rewards.append(reward)
         # print("######rewards log: ", self.rewards)
-        done = False
-        if len(self.rewards) < 3:
-            pass
-        elif sum(self.rewards) < 0:
-            done = True
-        else:
-            done = False
+       # if len(self.rewards) < 3:
+       #     pass
+       # elif sum(self.rewards) < -3: # previously set to < 0
+       #     done = True
+       # else:
+       #     done = False
 
 
         ###################################

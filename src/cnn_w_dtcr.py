@@ -39,7 +39,7 @@ random.seed(1)  # fix the random seed
 class DQNAgent:
     #Constructor for the agent (invoked when DQN is first called in main)
     def __init__(self, state_size, action_space):
-        self.check_solve = False	#If True, stop if you satisfy solution condition
+        self.check_solve = True	#If True, stop if you satisfy solution condition
         self.render = False#If you want to see Cartpole learning, then change to True
         self.action_space = action_space
         #Get size of state and action
@@ -243,8 +243,8 @@ def main(args):
     #Create agent, see the DQNAgent __init__ method for details
     agent = DQNAgent(state_size, env.action_space)
     # load the pre-trained model
-    path_to_model = 'model_cnn.h5'
-    path_to_target = 'target_model_cnn.h5'
+    path_to_model = 'models/model_cnn.h5'
+    path_to_target = 'models/target_model_cnn.h5'
     if os.path.isfile(path_to_model) and os.path.isfile(path_to_target):
         print("Loading the pre-trained model......")
         agent.restore_model(path_to_model, path_to_target)
@@ -339,10 +339,15 @@ def main(args):
                 # if the mean of scores of last 100 episodes is bigger than 195
                 # stop training
                 if agent.check_solve:
-                    if np.mean(scores[-min(100, len(scores)):]) >= 195:
+                   # if np.mean(scores[-min(100, len(scores)):]) >= 160:
+                    last_hundred_q_mean = np.mean(max_q_mean[-min(100, len(max_q_mean)):])
+                    if abs(last_hundred_q_mean - max_q_mean[e]) / last_hundred_q_mean  <= 0.05:
                         print("solved after", e-100, "episodes")
-                        agent.plot_data(episodes,scores,max_q_mean[:e+1])
+                        agent.plot_data(episodes,scores,max_q_mean[:e+1], success_cnt )
+                        agent.save_model(path_to_model[:-3]+"_{}".format(e)+path_to_model[-3:], path_to_target[:-3]+"_{}".format(e)+path_to_target[-3:])
                         sys.exit()
+            if e % 100 == 0:
+                agent.save_model(path_to_model[:-3]+"_{}".format(e)+path_to_model[-3:], path_to_target[:-3]+"_{}".format(e)+path_to_target[-3:])
     agent.plot_data(episodes,scores, max_q_mean, success_cnt )
     # Save the model
     agent.save_model(path_to_model, path_to_target)
@@ -358,8 +363,10 @@ def test(args):
     state_size = None
     agent = DQNAgent(state_size, env.action_space)
     # load the pre-trained model
-    path_to_model = 'model_cnn.h5'
-    path_to_target = 'target_model_cnn.h5'
+    path_to_model = args.path
+    path_to_target = 'target_' + args.path
+    #path_to_model = 'model_cnn.h5'
+    #path_to_target = 'target_model_cnn.h5'
     if os.path.isfile(path_to_model) and os.path.isfile(path_to_target):
         print("Loading the pre-trained model......")
         agent.restore_model(path_to_model, path_to_target)
