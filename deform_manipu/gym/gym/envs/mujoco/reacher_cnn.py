@@ -21,38 +21,38 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
         # print("In step ation: ", a)
         ###################################
         # the reward function from https://arxiv.org/pdf/1511.03791.pdf
-        previous_vec = self.get_body_com("fingertip")-self.get_body_com("target")
-        prev_dis = np.linalg.norm(previous_vec)
+        #previous_vec = self.get_body_com("fingertip")-self.get_body_com("target")
+        #prev_dis = np.linalg.norm(previous_vec)
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         vec = self.get_body_com("fingertip")-self.get_body_com("target")
         dis = np.linalg.norm(vec)
-        delta_dis = dis - prev_dis
+        #delta_dis = dis - prev_dis
         touch = False # specify if the target is touched or not
         gamma = 0.25
         done = False
         
 
         """ Reward function 1 """
-        if delta_dis > 0:
-            reward = -1
-        elif dis < 0.001:
-            reward = 100
-            done = True
-            touch = True
-            return ob, reward, done, touch
-        elif delta_dis < 0:
-            reward = 1
-        else:
-            reward = 0
-        self.rewards.append(reward)
+        #if delta_dis > 0:
+        #    reward = -1
+        #elif dis < 0.001:
+        #    reward = 100
+        #    done = True
+        #    touch = True
+        #    return ob, reward, done, touch
+        #elif delta_dis < 0:
+        #    reward = 1
+        #else:
+        #    reward = 0
+        #self.rewards.append(reward)
 
-        if len(self.rewards) < 3:
-            pass
-        elif sum(self.rewards) < -1:
-            done = True
-        else:
-            done = False
+        #if len(self.rewards) < 3:
+        #    pass
+        #elif sum(self.rewards) < -1:
+        #    done = True
+        #else:
+        #    done = False
         """ Reward function 2 """
         # if dis < 0.02:
         #     print("@"*10)
@@ -78,6 +78,30 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
        # else:
        #     done = False
 
+        
+        """Reward function 3"""
+        #TODO: consider to loose the target-reached constraint
+        if dis < 0.005:
+             print("Near the target, distance: ", dis)
+        if  dis < 0.001:
+            print("#"*20)
+            print("Target touched!")
+            print("#"*20)
+            reward = 100
+            self.rewards.append(reward)
+            touch = True
+            done = True
+            return ob, reward, done, touch
+
+        reward = np.exp(-gamma * dis)
+        if len(self.rewards) < 3:
+            pass
+        elif np.all(self.rewards > reward):
+            done = True
+        else:
+            done = False
+        
+        self.rewards.append(reward)
 
         ###################################
         # vec = self.get_body_com("fingertip")-self.get_body_com("target")

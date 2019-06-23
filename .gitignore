@@ -117,6 +117,6 @@ venv.bak/
 
 # self-defined files
 result/
-
+MNIST_data/
 
 
