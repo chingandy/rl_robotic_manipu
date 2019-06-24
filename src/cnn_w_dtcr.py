@@ -217,19 +217,19 @@ class DQNAgent:
         pylab.plot(episodes, max_q_mean, 'b')
         pylab.xlabel("Episodes")
         pylab.ylabel("Average Q Value")
-        pylab.savefig("qvalues.png")
+        pylab.savefig("pic/qvalues.png")
 
         pylab.figure(1)
         pylab.plot(episodes, scores, 'b')
         pylab.xlabel("Episodes")
         pylab.ylabel("Score")
-        pylab.savefig("scores.png")
+        pylab.savefig("pic/scores.png")
 
         pylab.figure(2)
         pylab.plot(episodes, success_cnt, 'b')
         pylab.xlabel("Episodes")
         pylab.ylabel("Successes")
-        pylab.savefig("successes.png")
+        pylab.savefig("pic/successes.png")
 def main(args):
     EPISODES = args.episodes
     print("#"*50)
@@ -243,8 +243,8 @@ def main(args):
     #Create agent, see the DQNAgent __init__ method for details
     agent = DQNAgent(state_size, env.action_space)
     # load the pre-trained model
-    path_to_model = 'models/model_cnn.h5'
-    path_to_target = 'models/target_model_cnn.h5'
+    path_to_model = 'models/' + args.path
+    path_to_target = 'models/target_' + args.path
     if os.path.isfile(path_to_model) and os.path.isfile(path_to_target):
         print("Loading the pre-trained model......")
         agent.restore_model(path_to_model, path_to_target)
@@ -363,8 +363,10 @@ def test(args):
     state_size = None
     agent = DQNAgent(state_size, env.action_space)
     # load the pre-trained model
-    path_to_model = args.path
-    path_to_target = 'target_' + args.path
+    path_to_model = "models/" + args.path
+    path_to_target = 'models/target_' + args.path
+    print("Path to model: ", path_to_model)
+    print("Path to target model: ", path_to_target)
     #path_to_model = 'model_cnn.h5'
     #path_to_target = 'target_model_cnn.h5'
     if os.path.isfile(path_to_model) and os.path.isfile(path_to_target):
