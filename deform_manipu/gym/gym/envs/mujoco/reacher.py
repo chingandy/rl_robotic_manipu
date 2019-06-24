@@ -10,7 +10,7 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
         # self.action_space = [[-0.0001, 0],[-0.01, 0],[0.0001, 0], [0.01, 0],[0 , -0.0001], [0, -0.01],[0, 0.0001], [0, 0.01] ]  # self-added
         # action_range = [-0.05, -0.0001, 0.0001, 0.05]
-        action_range = [-0.05, -0.025, -0.01, 0.01, 0.025, 0.05]
+        action_range = [-0.01, 0.01]
         self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range]
         # add_range = [-0.5, 0.5]
         # self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range] + [[y, 0] for y in add_range] + [[0, y] for y in add_range]
@@ -30,6 +30,8 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         delta_dis = dis - prev_dis
         success = False
         gamma = 0.25
+        touch = False
+        done = False
 
         # image = self.render(mode='rgb_array', width=256, height=256 ) # added by Andy, type: numpy.ndarray
 
@@ -39,14 +41,15 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # elif dis < 0.001:
         #     reward = 100
         #     done = True
-        #     return ob, reward, done, info
+        #     touch = True
+        #     return ob, reward, done, touch
         # elif delta_dis < 0:
         #     reward = 1
         # else:
         #     reward = 0
         # self.rewards.append(reward)
         # # print("######rewards log: ", self.rewards)
-        # done = False
+        #
         # if len(self.rewards) < 3:
         #     pass
         # elif sum(self.rewards) < -1:
@@ -57,27 +60,51 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # if dis < 0.02:
         #     print("@"*10)
         #     print("Distance: ", dis)
-        if delta_dis > 0:
-            reward = - np.exp(gamma * dis)
-        elif dis < 0.001:
-            reward = 100
-            done = True
-            success = True
-            return ob, reward, done, success
-        elif delta_dis < 0:
-            reward = np.exp(-gamma * dis)
-        else:
-            reward = 0
+        # if delta_dis > 0:
+        #     reward = - np.exp(gamma * dis)
+        # elif dis < 0.001:
+        #     reward = 100
+        #     done = True
+        #     success = True
+        #     return ob, reward, done, success
+        # elif delta_dis < 0:
+        #     reward = np.exp(-gamma * dis)
+        # else:
+        #     reward = 0
+        #
+        # self.rewards.append(reward)
+        # # print("######rewards log: ", self.rewards)
+        # done = False
+        # if len(self.rewards) < 3:
+        #     pass
+        # elif sum(self.rewards) < 0:
+        #     done = True
+        # else:
+        #     done = False
 
-        self.rewards.append(reward)
-        # print("######rewards log: ", self.rewards)
-        done = False
+        """ Reward function 3"""
+        #TODO: consider to loose the target-reached constraint
+        if dis < 0.005:
+             print("Near the target, distance: ", dis)
+        if  dis < 0.001:
+            print("#"*20)
+            print("Target touched!")
+            print("#"*20)
+            reward = 100
+            self.rewards.append(reward)
+            touch = True
+            done = True
+            return ob, reward, done, touch
+
+        reward = np.exp(-gamma * dis)
         if len(self.rewards) < 3:
             pass
-        elif sum(self.rewards) < 0:
+        elif np.all(self.rewards > reward):
             done = True
         else:
             done = False
+
+        self.rewards.append(reward)
 
 
         ###################################
@@ -92,7 +119,7 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # if done:
         #     print("In def step.......", done)
         # info = "this is from my step" + str(done)
-        return ob, reward, done, success
+        return ob, reward, done, touch
         ######################################
         # return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
 
