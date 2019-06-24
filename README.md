@@ -56,3 +56,71 @@ gym.error.Error: Tried to reset environment which is not done. While the monitor
 ## How to change the max steps per episode?
 
 You can find the variable `max_episode_steps` in the directory `gym/gym/envs/__init__.py`.
+
+
+# Reacher v2 (OpenAI Gym)
+## Overview
+
+### Details
+* Name: Reacher-v2
+* Category: Mujoco
+* [Leaderboard Page]()
+* Old links:
+  * [Environment Page](https://gym.openai.com/envs/Reacher-v2/)
+
+
+### Description
+A 2 DOF robotic arm whose task is to reacher a particular target in the field.
+### Source
+To be completed
+
+## Environment
+
+### Observation
+
+Type: Box(11,)
+
+Num | Observation | Min | Max
+---|---|---|---
+0 | cos(theta) (first joint)  |  |
+1 | cos(theta) (second joint) |  |
+2 | sin(theta) (first joint)  |  |
+3 | sin(theta) (second joint) |  |
+4 | qpos (the x coordinate of the target ) |  |
+5 | qpos (the y coordinate of the target ) |  |
+6 | qvel (the velocity of the fingertip in the x direction ) |  |
+7 | qvel (the velocity of the fingertip in the y direction ) |  |
+8 | the x-axis component of the vector from the target to the fingertip |  |
+9 | the y-axis component of the vector from the target to the fingertip |  |
+10 | the z-axis component of the vector from the target to the fingertip |  |
+### Actions
+<!---
+Type: Discrete(2)
+
+Num | Action
+--- | ---
+0 | Push cart to the left
+1 | Push cart to the right
+-->
+
+
+### Reward
+
+
+### Starting State
+
+### Episode Termination
+
+
+### Solved Requirements
+
+
+
+
+
+
+
+
+
+
+

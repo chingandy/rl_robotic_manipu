@@ -28,7 +28,6 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         vec = self.get_body_com("fingertip")-self.get_body_com("target")
         dis = np.linalg.norm(vec)
         delta_dis = dis - prev_dis
-        success = False
         gamma = 0.25
         touch = False
         done = False
@@ -147,6 +146,23 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def _get_obs(self):
         theta = self.sim.data.qpos.flat[:2]
+        print("theta: ", type(theta))
+        out = np.concatenate([
+            np.cos(theta),
+            np.sin(theta),
+            self.sim.data.qpos.flat[2:],
+            self.sim.data.qvel.flat[:2],
+            self.get_body_com("fingertip") - self.get_body_com("target")
+        ])
+        print("out: ", out.shape)
+        print(out)
+        print("cos(theta): ", np.cos(theta))
+        print("sin(theta): ", np.sin(theta))
+        print("qpos: ", self.sim.data.qpos.flat[2:])
+        print("qvel: ", self.sim.data.qvel.flat[:2])
+        print("fingertip: ", self.get_body_com("fingertip"))
+        print("target:", self.get_body_com("target"))
+
         return np.concatenate([
             np.cos(theta),
             np.sin(theta),

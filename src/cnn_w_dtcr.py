@@ -19,7 +19,7 @@ from time import time
 
 
 #logging.basicConfig(filename='logging.txt',level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
-# TODO: still could not make the model utilize the memory of gpus 
+# TODO: still could not make the model utilize the memory of gpus
 import  keras.backend.tensorflow_backend as K
 
 #config = tf.ConfigProto(allow_soft_placement=True)
@@ -104,8 +104,8 @@ class DQNAgent:
         output = Dense(256)(output)
         output = Dense(self.action_size)(output)
         model = Model(inputs=[main_input, aux_input], output=output)
-        opt = Adam(lr=self.learning_rate)
-        model.compile(loss='mse', optimizer=Adam(lr=self.learning_rate))
+        opt = Adam(lr=self.learning_rate, decay=1e-6)
+        model.compile(loss='mse', optimizer=opt)
        # plot_model(model, to_file='plot_model.png')
         return model
 ###############################################################################
@@ -130,7 +130,7 @@ class DQNAgent:
             action =  np.argmax(q_value[0])
         # action = random.randrange(self.action_size)
         return action
-    
+
     def get_test_action(self, state, obj_pos):
 ###############################################################################
 ###############################################################################
@@ -357,8 +357,8 @@ def main(args):
 def test(args):
     env = gym.make("Reacher-v101")
     env = wrappers.Monitor(env, './videos/' + str(time()) + '/')
-    
-    
+
+
     #Create agent, see the DQNAgent __init__ method for details
     state_size = None
     agent = DQNAgent(state_size, env.action_space)
@@ -402,16 +402,10 @@ def test(args):
         print("Total steps: ", steps)
     #print_stats('Test', test_rewards, args.n_test_iter,
                 #time() - test_start, test_steps, 0, agent)
-    return test_rewards 
+    return test_rewards
 if __name__ == '__main__':
     if parser.args.test:
         reward = test(parser.args)
         print("Reward: ", reward)
     else:
         main(parser.args)
-
-
-
-
-
-
