@@ -31,6 +31,9 @@ import  keras.backend.tensorflow_backend as K
 
 
 EPISODES = 1000  # Default of the number of episodes:  1000
+INITIAL_EPSILON = 1.0 # Initial value of epsilon in epsilon-greedy
+FINAL_EPSILON = 0.1 # Final value of epsilon in epsilon-greedy
+EXPLORATION_STEPS = 1e6
 inshape = (256, 256, 3)  # the size of images
 random.seed(1)  # fix the random seed
 #DQN Agent for the reacher-v2
@@ -52,10 +55,11 @@ class DQNAgent:
         #Set hyper parameters for the DQN. Do not adjust those labeled as Fixed.
         self.discount_factor = 0.99
         self.learning_rate = 6e-6  # 0.005
-        self.epsilon = 0.1 #Fixed 0.02
+        self.epsilon = INITIAL_EPSILON #Fixed 0.02
+        self.epsilon_interval = (INITIAL_EPSILON - FINAL_EPSILON) / EXPLORATION_STEPS
         self.batch_size = 32 #Fixed
         self.memory_size = 500000  # 1000/ 500000
-        self.train_start = 1000 #Fixed, determine when the training starts with certain memory size
+        self.train_start = 1000  #Fixed, determine when the training starts with certain memory size
         self.target_update_frequency = 1
 ################################################################################
 ################################################################################
@@ -128,7 +132,9 @@ class DQNAgent:
             obj_pos = obj_pos.reshape((2,1)).T  # reshape is needed to make model.predict() work
             q_value = self.model.predict([state, obj_pos])
             action =  np.argmax(q_value[0])
-        # action = random.randrange(self.action_size)
+        # Annealing epsilon over time
+        if self.epsilon >= FINAL_EPSILON and len(self.memory) >= self.train_start: 
+            self.epsilon -= self.epsilon_interval
         return action
 
     def get_test_action(self, state, obj_pos):
@@ -236,10 +242,10 @@ def main(args):
     #Get state and action sizes from the environment
     state_size = env.observation_space.shape[0]
     action_size = len(env.action_space)
-    print("#"*50)
+    print("#"*100)
     print("# of episodes: ", EPISODES)
     print("Action space: ", env.action_space)
-    print("#"*50)
+    print("#"*100)
     #Create agent, see the DQNAgent __init__ method for details
     agent = DQNAgent(state_size, env.action_space)
     # load the pre-trained model
@@ -249,14 +255,14 @@ def main(args):
     else:
         path_to_model = 'models/model_cnn.h5'
         path_to_target = 'models/target_model_cnn.h5'
-    print("#" * 50)
+    print("#" * 100)
     if os.path.isfile(path_to_model) and os.path.isfile(path_to_target):
         print("Loading the pre-trained model......")
         agent.restore_model(path_to_model, path_to_target)
         print("Done")
     else:
         print("Pre-trained model doesn't exist.")
-    print("#" * 50)
+    print("#" * 100)
     sleep(2)
 
     # Collect test states for plotting Q values using uniform random policy
@@ -302,9 +308,9 @@ def main(args):
             print("Detector failed!!!")
 
         #Compute Q values for plotting
-        tmp = agent.model.predict([test_states, target_pos_test])
-        max_q[e][:] = np.max(tmp, axis=1)
-        max_q_mean[e] = np.mean(max_q[e][:])
+        tmp = agent.model.predict([test_states, target_pos_test]) # tmp.shape: (1000, 720)
+        max_q[e][:] = np.max(tmp, axis=1) # find the max of Q(s,a) for each state 
+        max_q_mean[e] = np.mean(max_q[e][:]) # find the mean of the maximun values of Q(s,a)
         count = 0
         while not done:
 #
@@ -348,7 +354,7 @@ def main(args):
                 if agent.check_solve:
                    # if np.mean(scores[-min(100, len(scores)):]) >= 160:
                     last_hundred_q_mean = np.mean(max_q_mean[-min(100, len(max_q_mean)):])
-                    if abs(last_hundred_q_mean - max_q_mean[e]) / last_hundred_q_mean  <= 0.05:
+                    if abs(last_hundred_q_mean - max_q_mean[e]) / last_hundred_q_mean  <= 0.01:
                         print("solved after", e-100, "episodes")
                         agent.plot_data(episodes,scores,max_q_mean[:e+1], success_cnt )
                         agent.save_model(path_to_model[:-3]+"_{}".format(e)+path_to_model[-3:], path_to_target[:-3]+"_{}".format(e)+path_to_target[-3:])
@@ -372,7 +378,7 @@ def test(args):
     # load the pre-trained model
     path_to_model = "models/" + args.path
     path_to_target = 'models/target_' + args.path
-    print("#"*50)
+    print("#" * 100)
     print("Path to model: ", path_to_model)
     print("Path to target model: ", path_to_target)
     #path_to_model = 'model_cnn.h5'
@@ -384,7 +390,7 @@ def test(args):
     else:
         print("Pre-trained model doesn't exist.")
         sys.exit()
-    print("#"*50)
+    print("#" * 100)
     #env = wrappers.Monitor(env, './videos/' + str(time()) + '/', video_callable=do_record)
     test_rewards = []
     test_start = time()
