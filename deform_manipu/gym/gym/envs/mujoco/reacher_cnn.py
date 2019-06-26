@@ -82,10 +82,10 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
         """Reward function 3"""
         #TODO: consider to loose the target-reached constraint
         if dis < 0.05: # original setting: 0.008 => too strict
-             plt.axis('off')
-             plt.imshow(ob)
-             plt.savefig('/home/chingan/thesis/rl_robotic_manipu/src/near_pic/img.png',transparent = True, bbox_inches = 'tight', pad_inches = 0)
-             print("##########################Image saved.###########################")
+             #plt.axis('off')
+             #plt.imshow(ob)
+             #plt.savefig('/home/chingan/thesis/rl_robotic_manipu/src/near_pic/img.png',transparent = True, bbox_inches = 'tight', pad_inches = 0)
+             #print("##########################Image saved.###########################")
              print("Near the target, distance: ", dis)
         if  dis <= 0.01:
             print("#"*50)
