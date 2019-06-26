@@ -2,11 +2,9 @@
 # Created by https://www.gitignore.io/api/python
 
 
-# models files
-*.h5
+.DS_Store
+result/
 *.png
-*.zip
-videos/
 
 
 ### Python ###
@@ -113,11 +111,3 @@ venv.bak/
 # End of https://www.gitignore.io/api/python
 
 # Generated using ignr.py - github.com/Antrikshy/ignr.py
-
-
-# self-defined files
-result/
-MNIST_data/
-
-
-
