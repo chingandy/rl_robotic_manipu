@@ -82,10 +82,10 @@ Type: Box(11,)
 
 Num | Observation | Min | Max
 ---|---|---|---
-0 | cos(theta) (first joint)  |  |
-1 | cos(theta) (second joint) |  |
-2 | sin(theta) (first joint)  |  |
-3 | sin(theta) (second joint) |  |
+0 | cos(theta) (joint 0)  | None | None
+1 | cos(theta) (joint 1) | cos(-3.0)  | cos(3.0)
+2 | sin(theta) (joint 0)  | None | None
+3 | sin(theta) (joint 1) | sin(-3.0) | sin(3.0)
 4 | qpos (the x coordinate of the target ) |  |
 5 | qpos (the y coordinate of the target ) |  |
 6 | qvel (the velocity of the fingertip in the x direction ) |  |
@@ -113,14 +113,3 @@ Num | Action
 
 
 ### Solved Requirements
-
-
-
-
-
-
-
-
-
-
-
