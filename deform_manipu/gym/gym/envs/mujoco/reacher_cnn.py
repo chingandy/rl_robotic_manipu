@@ -2,15 +2,15 @@ import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 from collections import deque
+import matplotlib.pyplot as plt
 
 class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
         self.rewards = deque(maxlen = 3)
         utils.EzPickle.__init__(self) # some constructor
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
-        # self.action_space = [[-0.0001, 0],[-0.01, 0],[0.0001, 0], [0.01, 0],[0 , -0.0001], [0, -0.01],[0, 0.0001], [0, 0.01] ]  # self-added
-        # action_range = [-0.05, -0.0001, 0.0001, 0.05]
-        action_range = [-0.01, 0.01]
+        #action_range = [-0.1, -0.01, -0.005, 0.005, 0.01, 0.1]
+        action_range = np.arange(-np.pi, np.pi, 2 * np.pi / 360)
         self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range]
         # add_range = [-0.5, 0.5]
         # self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range] + [[y, 0] for y in add_range] + [[0, y] for y in add_range]
@@ -81,12 +81,16 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
         
         """Reward function 3"""
         #TODO: consider to loose the target-reached constraint
-        if dis < 0.005:
+        if dis < 0.05: # original setting: 0.008 => too strict
+             plt.axis('off')
+             plt.imshow(ob)
+             plt.savefig('/home/chingan/thesis/rl_robotic_manipu/src/near_pic/img.png',transparent = True, bbox_inches = 'tight', pad_inches = 0)
+             print("##########################Image saved.###########################")
              print("Near the target, distance: ", dis)
-        if  dis < 0.001:
-            print("#"*20)
+        if  dis <= 0.01:
+            print("#"*50)
             print("Target touched!")
-            print("#"*20)
+            print("#"*50)
             reward = 100
             self.rewards.append(reward)
             touch = True
