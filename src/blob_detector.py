@@ -8,9 +8,9 @@ def blob_detector(im):
     # im = cv2.imread("blobTest.jpg", cv2.IMREAD_GRAYSCALE)
     
     if im.ndim != 3:
-        print("Current img: ", im.shape)
+        #print("Current img: ", im.shape)
         im = im[0]
-        print("After: ", im.shape)
+        #print("After: ", im.shape)
     """ Set up SimpleBlobDetector parameters """
     params = cv2.SimpleBlobDetector_Params()
 

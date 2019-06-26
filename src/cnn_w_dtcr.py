@@ -15,7 +15,7 @@ from blob_detector import blob_detector
 import logging
 import parser
 from gym import wrappers
-from time import time
+from time import time, sleep
 
 
 #logging.basicConfig(filename='logging.txt',level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
@@ -94,7 +94,7 @@ class DQNAgent:
         x = Flatten()(x)
 
         # The second branch on the auxiliary input
-        y = Dense(1, )(aux_input)
+        y = Dense(2, )(aux_input)
 
         # Combine the ouput of the two branches
         merged_vector = concatenate([x, y])
@@ -232,25 +232,32 @@ class DQNAgent:
         pylab.savefig("pic/successes.png")
 def main(args):
     EPISODES = args.episodes
-    print("#"*50)
-    print("# of episodes: ", EPISODES)
-
     env = gym.make('Reacher-v101') # Reacher-v101 environment is the edited version of Reacher-v0 adapted for CNN
     #Get state and action sizes from the environment
     state_size = env.observation_space.shape[0]
     action_size = len(env.action_space)
-    print("State size: ", state_size)
+    print("#"*50)
+    print("# of episodes: ", EPISODES)
+    print("Action space: ", env.action_space)
+    print("#"*50)
     #Create agent, see the DQNAgent __init__ method for details
     agent = DQNAgent(state_size, env.action_space)
     # load the pre-trained model
-    path_to_model = 'models/' + args.path
-    path_to_target = 'models/target_' + args.path
+    if args.path:
+        path_to_model = 'models/' + args.path
+        path_to_target = 'models/target_' + args.path
+    else:
+        path_to_model = 'models/model_cnn.h5'
+        path_to_target = 'models/target_model_cnn.h5'
+    print("#" * 50)
     if os.path.isfile(path_to_model) and os.path.isfile(path_to_target):
         print("Loading the pre-trained model......")
         agent.restore_model(path_to_model, path_to_target)
+        print("Done")
     else:
         print("Pre-trained model doesn't exist.")
-
+    print("#" * 50)
+    sleep(2)
 
     # Collect test states for plotting Q values using uniform random policy
     test_states = np.zeros((agent.test_state_no, inshape[0], inshape[1], inshape[2]))
@@ -365,6 +372,7 @@ def test(args):
     # load the pre-trained model
     path_to_model = "models/" + args.path
     path_to_target = 'models/target_' + args.path
+    print("#"*50)
     print("Path to model: ", path_to_model)
     print("Path to target model: ", path_to_target)
     #path_to_model = 'model_cnn.h5'
@@ -372,9 +380,11 @@ def test(args):
     if os.path.isfile(path_to_model) and os.path.isfile(path_to_target):
         print("Loading the pre-trained model......")
         agent.restore_model(path_to_model, path_to_target)
+        print("Done")
     else:
         print("Pre-trained model doesn't exist.")
-
+        sys.exit()
+    print("#"*50)
     #env = wrappers.Monitor(env, './videos/' + str(time()) + '/', video_callable=do_record)
     test_rewards = []
     test_start = time()
