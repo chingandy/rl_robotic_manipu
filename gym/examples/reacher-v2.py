@@ -21,7 +21,7 @@ class DQNAgent:
     #Constructor for the agent (invoked when DQN is first called in main)
     def __init__(self, state_size, action_space):
         self.check_solve = False
-        self.render = True  # visualize the training process
+        self.render = False  # visualize the training process
         self.action_space = action_space
         #Get size of state and action
         self.state_size = state_size
