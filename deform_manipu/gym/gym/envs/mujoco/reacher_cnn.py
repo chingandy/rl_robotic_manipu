@@ -10,7 +10,8 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
         utils.EzPickle.__init__(self) # some constructor
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
         #action_range = [-0.1, -0.01, -0.005, 0.005, 0.01, 0.1]
-        action_range = np.arange(-np.pi, np.pi, 2 * np.pi / 360)
+        action_range = [-0.05, 0.05]
+        #action_range = np.arange(-np.pi, np.pi, 2 * np.pi / 360)
         self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range]
         # add_range = [-0.5, 0.5]
         # self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range] + [[y, 0] for y in add_range] + [[0, y] for y in add_range]
@@ -21,8 +22,8 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
         # print("In step ation: ", a)
         ###################################
         # the reward function from https://arxiv.org/pdf/1511.03791.pdf
-        #previous_vec = self.get_body_com("fingertip")-self.get_body_com("target")
-        #prev_dis = np.linalg.norm(previous_vec)
+        previous_vec = self.get_body_com("fingertip")-self.get_body_com("target")
+        prev_dis = np.linalg.norm(previous_vec)
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         vec = self.get_body_com("fingertip")-self.get_body_com("target")
@@ -81,33 +82,56 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
         
         """Reward function 3"""
         #TODO: consider to loose the target-reached constraint
+        #if dis < 0.05: # original setting: 0.008 => too strict
+        #     #plt.axis('off')
+        #     #plt.imshow(ob)
+        #     #plt.savefig('/home/chingan/thesis/rl_robotic_manipu/src/near_pic/img.png',transparent = True, bbox_inches = 'tight', pad_inches = 0)
+        #     #print("##########################Image saved.###########################")
+        #     print("Near the target, distance: ", dis)
+        #if  dis <= 0.01:
+        #    print("#"*50)
+        #    print("Target touched!")
+        #    print("#"*50)
+        #    reward = 100
+        #    self.rewards.append(reward)
+        #    touch = True
+        #    done = True
+        #    return ob, reward, done, touch
+
+        #reward = np.exp(-gamma * dis)
+        #if len(self.rewards) < 3:
+        #    pass
+        #elif np.all(self.rewards > reward):
+        #    done = True
+        #else:
+        #    done = False
+        #
+        #self.rewards.append(reward)
+        """ Reward function 4 """
+        beta = 100
+
+        reward_dist = - dis
+        reward_ctrl = - np.square(a).sum()
+        reward_vel = - beta * self.sim.data.qvel.flat[0] # add penalty to the velocity
+        reward = reward_dist + reward_ctrl + reward_vel
         if dis < 0.05: # original setting: 0.008 => too strict
-             #plt.axis('off')
-             #plt.imshow(ob)
-             #plt.savefig('/home/chingan/thesis/rl_robotic_manipu/src/near_pic/img.png',transparent = True, bbox_inches = 'tight', pad_inches = 0)
-             #print("##########################Image saved.###########################")
              print("Near the target, distance: ", dis)
-        if  dis <= 0.01:
-            print("#"*50)
+        if  dis <= 0.02:
+            print("#"*100)
             print("Target touched!")
-            print("#"*50)
-            reward = 100
-            self.rewards.append(reward)
+            print("#"*100)
+            reward += 100
             touch = True
             done = True
             return ob, reward, done, touch
 
-        reward = np.exp(-gamma * dis)
-        if len(self.rewards) < 3:
-            pass
-        elif np.all(self.rewards > reward):
-            done = True
-        else:
-            done = False
-        
-        self.rewards.append(reward)
+        if prev_dis < dis:
+            reward -= 100
 
+
+        #self.rewards.append(reward)
         ###################################
+
         # vec = self.get_body_com("fingertip")-self.get_body_com("target")
         # reward_dist = - np.linalg.norm(vec)
         # reward_ctrl = - np.square(a).sum()
