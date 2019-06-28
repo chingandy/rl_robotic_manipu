@@ -2,15 +2,15 @@ import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 from collections import deque
-import matplotlib.pyplot as plt
 
-class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+class ReacherEnvCV(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
         self.rewards = deque(maxlen = 3)
         utils.EzPickle.__init__(self) # some constructor
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
-        # action_range = [-0.1, -0.01, -0.005, 0.005, 0.01, 0.1]
-        action_range = [-0.1, -0.01, -0.00]
+        # self.action_space = [[-0.0001, 0],[-0.01, 0],[0.0001, 0], [0.01, 0],[0 , -0.0001], [0, -0.01],[0, 0.0001], [0, 0.01] ]  # self-added
+        # action_range = [-0.05, -0.0001, 0.0001, 0.05]
+        action_range = [-0.01, 0.01]
         self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range]
         # add_range = [-0.5, 0.5]
         # self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range] + [[y, 0] for y in add_range] + [[0, y] for y in add_range]
@@ -83,16 +83,12 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         """ Reward function 3"""
         #TODO: consider to loose the target-reached constraint
-        if dis < 0.008:
-             # plt.axis('off')
-             # plt.imshow(ob)
-             # plt.savefig('/Users/chingandywu/master-thesis/code/src/near/img.png',transparent = True, bbox_inches = 'tight', pad_inches = 0)
-             # print("##########################Image saved.###########################")
+        if dis < 0.005:
              print("Near the target, distance: ", dis)
-        if  dis <= 0.005:
-            print("#"*50)
+        if  dis < 0.001:
+            print("#"*20)
             print("Target touched!")
-            print("#"*50)
+            print("#"*20)
             reward = 100
             self.rewards.append(reward)
             touch = True
@@ -150,13 +146,7 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def _get_obs(self):
         theta = self.sim.data.qpos.flat[:2]
-        # print("Theta: ", theta * 180 / np.pi) # radian to degree
-        print("#" * 50)
-        print("Theta: ", theta) # radian to degree
-        # qpos = self.sim.data.qpos
-        # print("qpos: ", type(qpos), qpos.shape)
-        # print(qpos)
-
+        # print("theta: ", type(theta))
         # out = np.concatenate([
         #     np.cos(theta),
         #     np.sin(theta),
@@ -172,7 +162,7 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # print("qvel: ", self.sim.data.qvel.flat[:2])
         # print("fingertip: ", self.get_body_com("fingertip"))
         # print("target:", self.get_body_com("target"))
-
+        image = self.render(mode='rgb_array', width=256, height=256 )
         return np.concatenate([
             np.cos(theta),
             np.sin(theta),

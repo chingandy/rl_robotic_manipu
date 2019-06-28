@@ -99,6 +99,7 @@ class DQNAgent:
 
         # The second branch on the auxiliary input
         y = Dense(2, )(aux_input)
+        # y = Dense(1, )(aux_input)
 
         # Combine the ouput of the two branches
         merged_vector = concatenate([x, y])
@@ -287,7 +288,7 @@ def main(args):
 
             action_idx = random.randrange(action_size)
             action = env.action_space[action_idx]
-            next_state, reward, done, info= env.step(action)
+            next_state, reward, done, touch= env.step(action)
             test_states[i] = state
             #target_pos_test[i] = blob_detector(state)
             if not info:
@@ -297,6 +298,7 @@ def main(args):
 
 
     scores, episodes, success_cnt = [], [], [] #Create dynamically growing score and episode counters
+    count = 0
     for e in range(EPISODES):
         #done = False
         score = 0
@@ -311,7 +313,6 @@ def main(args):
         tmp = agent.model.predict([test_states, target_pos_test]) # tmp.shape: (1000, 720)
         max_q[e][:] = np.max(tmp, axis=1) # find the max of Q(s,a) for each state 
         max_q_mean[e] = np.mean(max_q[e][:]) # find the mean of the maximun values of Q(s,a)
-        count = 0
         while not done:
 #
             if agent.render:
@@ -388,9 +389,13 @@ def test(args):
         agent.restore_model(path_to_model, path_to_target)
         print("Done")
     else:
-        print("Pre-trained model doesn't exist.")
+        print("Model doesn't exist. Aborting...")
         sys.exit()
+<<<<<<< HEAD
     print("#" * 100)
+=======
+
+>>>>>>> 14a7785a5baa9b7be544fcd25189d88358a9da23
     #env = wrappers.Monitor(env, './videos/' + str(time()) + '/', video_callable=do_record)
     test_rewards = []
     test_start = time()
