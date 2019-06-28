@@ -10,7 +10,7 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         utils.EzPickle.__init__(self) # some constructor
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
         # action_range = [-0.1, -0.01, -0.005, 0.005, 0.01, 0.1]
-        action_range = [-0.1, -0.01, -0.00]
+        action_range = [-0.05, 0.05]
         self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range]
         # add_range = [-0.5, 0.5]
         # self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range] + [[y, 0] for y in add_range] + [[0, y] for y in add_range]
@@ -21,6 +21,7 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # print("In step ation: ", a)
         ###################################
         # the reward function from https://arxiv.org/pdf/1511.03791.pdf
+
         previous_vec = self.get_body_com("fingertip")-self.get_body_com("target")
         prev_dis = np.linalg.norm(previous_vec)
         self.do_simulation(a, self.frame_skip)
@@ -35,26 +36,31 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # image = self.render(mode='rgb_array', width=256, height=256 ) # added by Andy, type: numpy.ndarray
 
         """ Reward function 1 """
-        # if delta_dis > 0:
-        #     reward = -1
-        # elif dis < 0.001:
-        #     reward = 100
-        #     done = True
-        #     touch = True
-        #     return ob, reward, done, touch
-        # elif delta_dis < 0:
-        #     reward = 1
-        # else:
-        #     reward = 0
-        # self.rewards.append(reward)
-        # # print("######rewards log: ", self.rewards)
-        #
-        # if len(self.rewards) < 3:
-        #     pass
-        # elif sum(self.rewards) < -1:
-        #     done = True
-        # else:
-        #     done = False
+        if delta_dis > 0:
+            reward = -1
+        elif dis < 0.01:
+            # image = self.render(mode='rgb_array', width=256, height=256 )
+            # plt.axis('off')
+            # plt.imshow(image)
+            # plt.savefig('touch'+ str(dis)[:5]+ '.png',transparent = True, bbox_inches = 'tight', pad_inches = 0)
+            # print("##########################Image saved.###########################")
+            reward = 100
+            done = True
+            touch = True
+            return ob, reward, done, touch
+        elif delta_dis < 0:
+            reward = 1
+        else:
+            reward = 0
+        self.rewards.append(reward)
+        # print("######rewards log: ", self.rewards)
+
+        if len(self.rewards) < 3:
+            pass
+        elif sum(self.rewards) < -1:
+            done = True
+        else:
+            done = False
         """ Reward function 2 """
         # if dis < 0.02:
         #     print("@"*10)
@@ -83,31 +89,31 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         """ Reward function 3"""
         #TODO: consider to loose the target-reached constraint
-        if dis < 0.008:
-             # plt.axis('off')
-             # plt.imshow(ob)
-             # plt.savefig('/Users/chingandywu/master-thesis/code/src/near/img.png',transparent = True, bbox_inches = 'tight', pad_inches = 0)
-             # print("##########################Image saved.###########################")
-             print("Near the target, distance: ", dis)
-        if  dis <= 0.005:
-            print("#"*50)
-            print("Target touched!")
-            print("#"*50)
-            reward = 100
-            self.rewards.append(reward)
-            touch = True
-            done = True
-            return ob, reward, done, touch
-
-        reward = np.exp(-gamma * dis)
-        if len(self.rewards) < 3:
-            pass
-        elif np.all(self.rewards > reward):
-            done = True
-        else:
-            done = False
-
-        self.rewards.append(reward)
+        # if dis < 0.05:
+        #      # plt.axis('off')
+        #      # plt.imshow(ob)
+        #      # plt.savefig('/Users/chingandywu/master-thesis/code/src/near/img.png',transparent = True, bbox_inches = 'tight', pad_inches = 0)
+        #      # print("##########################Image saved.###########################")
+        #      print("Near the target, distance: ", dis)
+        # if  dis <= 0.01:
+        #     print("#"*50)
+        #     print("Target touched!")
+        #     print("#"*50)
+        #     reward = 100
+        #     self.rewards.append(reward)
+        #     touch = True
+        #     done = True
+        #     return ob, reward, done, touch
+        #
+        # reward = np.exp(-gamma * dis)
+        # if len(self.rewards) < 3:
+        #     pass
+        # elif np.all(self.rewards > reward):
+        #     done = True
+        # else:
+        #     done = False
+        #
+        # self.rewards.append(reward)
 
 
         ###################################
@@ -151,8 +157,12 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def _get_obs(self):
         theta = self.sim.data.qpos.flat[:2]
         # print("Theta: ", theta * 180 / np.pi) # radian to degree
-        print("#" * 50)
-        print("Theta: ", theta) # radian to degree
+        # print("#" * 50)
+        # print("world: ", self.get_body_com("world"))
+        # print("fingertip: ", self.get_body_com("fingertip"))
+        # print("target: ", self.get_body_com("target"))
+
+        # print("Theta: ", theta) # radian to degree
         # qpos = self.sim.data.qpos
         # print("qpos: ", type(qpos), qpos.shape)
         # print(qpos)
