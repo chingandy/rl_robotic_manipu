@@ -391,11 +391,8 @@ def test(args):
     else:
         print("Model doesn't exist. Aborting...")
         sys.exit()
-<<<<<<< HEAD
     print("#" * 100)
-=======
 
->>>>>>> 14a7785a5baa9b7be544fcd25189d88358a9da23
     #env = wrappers.Monitor(env, './videos/' + str(time()) + '/', video_callable=do_record)
     test_rewards = []
     test_start = time()

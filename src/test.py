@@ -1,18 +1,17 @@
-# from keras.layers import Input, Concatenate
-#
-#
-# x = Input(shape=(11, ))
-# y = Input(shape=(7, ))
-#
-# z = Concatenate([x, y], axis=0)
-# print(z)
-
-# import numpy as np
-# x = np.zeros((3,4))
-# y = np.zeros((3,10))
-#
-# z = np.concatenate((x, y), axis=1)
-# print(z.shape)
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 
-print(np.arange(0, 1, 0.1))
+# Data for plotting
+t = np.arange(0.0, 2.0, 0.01)
+s = 1 + np.sin(2 * np.pi * t)
+
+fig, ax = plt.subplots()
+ax.plot(t, s)
+
+ax.set(xlabel='time (s)', ylabel='voltage (mV)',
+       title='About as simple as it gets, folks')
+ax.grid()
+
+fig.savefig("test.png")
+plt.show()
