@@ -256,8 +256,8 @@ register(
 register(
     id='Reacher-v2',
     entry_point='gym.envs.mujoco:ReacherEnv',
-    max_episode_steps=None, # 50
-    #reward_threshold=-3.75,
+    max_episode_steps=100, # 50
+    reward_threshold=-3.75,
 )
 
 register(

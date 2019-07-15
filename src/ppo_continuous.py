@@ -4,7 +4,7 @@ from torch.distributions import MultivariateNormal
 import gym
 import numpy as np
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
 
 class Memory:
     def __init__(self):
@@ -31,7 +31,7 @@ class ActorCritic(nn.Module):
                 nn.Linear(n_var, action_dim),
                 nn.Tanh()
                 )
-        # critic
+        # critic, value function estimator
         self.critic = nn.Sequential(
                 nn.Linear(state_dim, n_var),
                 nn.Tanh(),
@@ -39,8 +39,13 @@ class ActorCritic(nn.Module):
                 nn.Tanh(),
                 nn.Linear(n_var, 1)
                 )
+<<<<<<< HEAD
+        self.action_var = torch.full((action_dim,), action_std * action_std).to(device)
+
+=======
         self.action_var = torch.full((action_dim,), action_std*action_std).to(device)
         
+>>>>>>> 812e1d69e1785d5425dfefc4e6ed25959f53799d
     def forward(self):
         raise NotImplementedError
     
@@ -112,7 +117,12 @@ class PPO:
         for _ in range(self.K_epochs):
             # Evaluating old actions and values :
             logprobs, state_values, dist_entropy = self.policy.evaluate(old_states, old_actions)
+<<<<<<< HEAD
+            # logprobs, state_values, dist_entropy = self.policy.evaluate(old_states, old_actions)
+
+=======
             
+>>>>>>> 812e1d69e1785d5425dfefc4e6ed25959f53799d
             # Finding the ratio (pi_theta / pi_theta__old):
             ratios = torch.exp(logprobs - old_logprobs.detach())
 
@@ -120,8 +130,13 @@ class PPO:
             advantages = rewards - state_values.detach()   
             surr1 = ratios * advantages
             surr2 = torch.clamp(ratios, 1-self.eps_clip, 1+self.eps_clip) * advantages
+<<<<<<< HEAD
+            loss = -torch.min(surr1, surr2) + 0.5 * self.MseLoss(state_values, rewards) - 0.01 * dist_entropy
+
+=======
             loss = -torch.min(surr1, surr2) + 0.5*self.MseLoss(state_values, rewards) - 0.01*dist_entropy
             
+>>>>>>> 812e1d69e1785d5425dfefc4e6ed25959f53799d
             # take gradient step
             self.optimizer.zero_grad()
             loss.mean().backward()
@@ -136,9 +151,15 @@ def main():
     render = False
     solved_reward = 200         # stop training if avg_reward > solved_reward
     log_interval = 20           # print avg reward in the interval
+<<<<<<< HEAD
+    max_episodes = 50000        # max training episodes
+    max_timesteps = 2048         # max timesteps in one episode
+    n_latent_var = 64           # number of variables in hidden layer
+=======
     max_episodes = 10000        # max training episodes
     max_timesteps = 500         # max timesteps in one episode
     
+>>>>>>> 812e1d69e1785d5425dfefc4e6ed25959f53799d
     update_timestep = 4000      # update policy every n timesteps
     action_std = 0.8            # constant std for action distribution (Multivariate Normal)
     K_epochs = 100              # update policy for K epochs
