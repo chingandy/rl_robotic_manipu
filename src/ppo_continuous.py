@@ -4,7 +4,7 @@ from torch.distributions import MultivariateNormal
 import gym
 import numpy as np
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
 
 class Memory:
     def __init__(self):
@@ -31,7 +31,7 @@ class ActorCritic(nn.Module):
                 nn.Linear(n_var, action_dim),
                 nn.Tanh()
                 )
-        # critic
+        # critic, value function estimator
         self.critic = nn.Sequential(
                 nn.Linear(state_dim, n_var),
                 nn.Tanh(),
@@ -39,7 +39,7 @@ class ActorCritic(nn.Module):
                 nn.Tanh(),
                 nn.Linear(n_var, 1)
                 )
-        self.action_var = torch.full((action_dim,), action_std*action_std).to(device)
+        self.action_var = torch.full((action_dim,), action_std * action_std).to(device)
 
     def forward(self):
         raise NotImplementedError
@@ -106,6 +106,7 @@ class PPO:
         for _ in range(self.K_epochs):
             # Evaluating old actions and values :
             logprobs, state_values, dist_entropy = self.policy.evaluate(old_states, old_actions)
+            # logprobs, state_values, dist_entropy = self.policy.evaluate(old_states, old_actions)
 
             # Finding the ratio (pi_theta / pi_theta__old):
             ratios = torch.exp(logprobs - old_logprobs.detach())
@@ -114,7 +115,7 @@ class PPO:
             advantages = rewards - state_values.detach()
             surr1 = ratios * advantages
             surr2 = torch.clamp(ratios, 1-self.eps_clip, 1+self.eps_clip) * advantages
-            loss = -torch.min(surr1, surr2) + 0.5*self.MseLoss(state_values, rewards) - 0.01*dist_entropy
+            loss = -torch.min(surr1, surr2) + 0.5 * self.MseLoss(state_values, rewards) - 0.01 * dist_entropy
 
             # take gradient step
             self.optimizer.zero_grad()
@@ -127,11 +128,11 @@ class PPO:
 def main():
     ############## Hyperparameters ##############
     env_name = "Reacher-v2"
-    render = True
+    render = False
     solved_reward = 200         # stop training if avg_reward > solved_reward
     log_interval = 20           # print avg reward in the interval
     max_episodes = 50000        # max training episodes
-    max_timesteps = 300         # max timesteps in one episode
+    max_timesteps = 2048         # max timesteps in one episode
     n_latent_var = 64           # number of variables in hidden layer
     update_timestep = 4000      # update policy every n timesteps
     action_std = 0.6            # constant std for action distribution
