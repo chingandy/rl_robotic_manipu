@@ -131,12 +131,12 @@ class PPO:
 
 def main():
     ############## Hyperparameters ##############
-    env_name = "Reacher-v2"
+    env_name = "LunarLander-v2"
     # creating environment
     env = gym.make(env_name)
     state_dim = env.observation_space.shape[0]
     action_dim = 5
-    render = True
+    render = False
     solved_reward = 230         # stop training if avg_reward > solved_reward
     log_interval = 20           # print avg reward in the interval
     max_episodes = 50000        # max training episodes
