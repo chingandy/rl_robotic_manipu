@@ -290,7 +290,7 @@ def ppo_continuous(**kwargs):
     config = Config()
     config.merge(kwargs)
 
-    config.task_fn = lambda: Task(config.game)
+    config.task_fn = lambda: Task(config.game, config.video_rendering)
     config.eval_env = config.task_fn()
 
     config.network_fn = lambda: GaussianActorCriticNet(
@@ -308,7 +308,9 @@ def ppo_continuous(**kwargs):
     config.log_interval = 2048
     config.max_steps = 1e6
     config.state_normalizer = MeanStdNormalizer()
+    config.video_rendering = True # set to False if no need to render videos
     run_steps(PPOAgent(config))
+
 
 
 

@@ -1,83 +1,66 @@
 import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
+from collections import deque
+import matplotlib.pyplot as plt
 
 class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
-        utils.EzPickle.__init__(self)
+        self.rewards = deque(maxlen = 3)
+        utils.EzPickle.__init__(self) # some constructor
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
-        """ Enable this block if want to train in the discrete action space """
         # action_range = [-0.1, -0.01, -0.005, 0.005, 0.01, 0.1]
-        # action_range = [0.05, -0.05]
-        # self.action_space = [[0, x] for x in action_range] + [[x, 0] for x in action_range] + [[0, 0]]
+        action_range = [-0.05, 0.05]
+        self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range]
+        # add_range = [-0.5, 0.5]
+        # self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range] + [[y, 0] for y in add_range] + [[0, y] for y in add_range]
 
 
     def step(self, a):
-        """ Original reward fucntion """
-        ################################################################
+        # a = self.action_space[a] # self-added
+        # print("In step ation: ", a)
+        ###################################
+        # the reward function from https://arxiv.org/pdf/1511.03791.pdf
 
-    def step(self, a):
-        vec = self.get_body_com("fingertip")-self.get_body_com("target")
-        reward_dist = - np.linalg.norm(vec)
-        reward_ctrl = - np.square(a).sum()
-        reward = reward_dist + reward_ctrl
+        previous_vec = self.get_body_com("fingertip")-self.get_body_com("target")
+        prev_dis = np.linalg.norm(previous_vec)
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
+        vec = self.get_body_com("fingertip")-self.get_body_com("target")
+        dis = np.linalg.norm(vec)
+        delta_dis = dis - prev_dis
+        gamma = 0.25
+        touch = False
         done = False
-        return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
-        # return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
-        ####################################################################
-        # previous_vec = self.get_body_com("fingertip")-self.get_body_com("target")
-        # prev_dis = np.linalg.norm(previous_vec)
-        # self.do_simulation(a, self.frame_skip)
-        # ob = self._get_obs()
-        # vec = self.get_body_com("fingertip")-self.get_body_com("target")
-        # dis = np.linalg.norm(vec)
-        # delta_dis = dis - prev_dis
-        # gamma = 0.25
-        # touch = False
-        # done = False
-        #
-        # # test new constraints
-        # vec_body_1 = self.get_body_com("body1") - self.get_body_com("world")
-        # vec_target = self.get_body_com("target") - self.get_body_com("world")
-        # inner_prod = np.dot(vec_body_1, vec_target)
-        # # print("#" * 50)
-        # # print("vec_body_1: ", vec_body_1)
-        # # print("vec_target: ", vec_target)
-        # # print("Inner product: ", np.dot(vec_body_1, vec_target))
-
 
         # image = self.render(mode='rgb_array', width=256, height=256 ) # added by Andy, type: numpy.ndarray
 
         """ Reward function 1 """
-        # if delta_dis > 0:
-        #     reward = -1
-        # # elif dis < 0.01:
-        # #     image = self.render(mode='rgb_array', width=256, height=256 )
-        # #     plt.axis('off')
-        # #     plt.imshow(image)
-        # #     plt.savefig('touch'+ str(dis)[:5]+ '.png',transparent = True, bbox_inches = 'tight', pad_inches = 0)
-        # #     print("##########################Image saved.###########################")
-        # #     reward = 100
-        # #     done = True
-        # #     touch = True
-        # #     return ob, reward, done, touch
-        # elif delta_dis < 0:
-        #     reward = 1
-        # else:
-        #     reward = 0
-        # if inner_prod < 0:
-        #     reward += 1000 * inner_prod
-        # self.rewards.append(reward)
-        # # print("######rewards log: ", self.rewards)
-        #
-        # if len(self.rewards) < 3:
-        #     pass
-        # elif sum(self.rewards) < -1:
-        #     done = True
-        # else:
-        #     done = False
+        if delta_dis > 0:
+            reward = -1
+        elif dis < 0.01:
+            # image = self.render(mode='rgb_array', width=256, height=256 )
+            # plt.axis('off')
+            # plt.imshow(image)
+            # plt.savefig('touch'+ str(dis)[:5]+ '.png',transparent = True, bbox_inches = 'tight', pad_inches = 0)
+            # print("##########################Image saved.###########################")
+            reward = 100
+            done = True
+            touch = True
+            return ob, reward, done, touch
+        elif delta_dis < 0:
+            reward = 1
+        else:
+            reward = 0
+        self.rewards.append(reward)
+        # print("######rewards log: ", self.rewards)
+
+        if len(self.rewards) < 3:
+            pass
+        elif sum(self.rewards) < -1:
+            done = True
+        else:
+            done = False
         """ Reward function 2 """
         # if dis < 0.02:
         #     print("@"*10)
@@ -105,8 +88,7 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         #     done = False
 
         """ Reward function 3"""
-        # #TODO: consider to loose the target-reached constraint
-        # reward = np.exp(-gamma * dis)
+        #TODO: consider to loose the target-reached constraint
         # if dis < 0.05:
         #      # plt.axis('off')
         #      # plt.imshow(ob)
@@ -117,18 +99,17 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         #     print("#"*50)
         #     print("Target touched!")
         #     print("#"*50)
-        #     # reward += 100
-        #     self.rewards.clear()
+        #     reward = 100
+        #     self.rewards.append(reward)
         #     touch = True
         #     done = True
         #     return ob, reward, done, touch
         #
+        # reward = np.exp(-gamma * dis)
         # if len(self.rewards) < 3:
         #     pass
         # elif np.all(self.rewards > reward):
-        #     self.rewards.clear()
         #     done = True
-        #     return ob, reward, done, touch
         # else:
         #     done = False
         #
@@ -147,13 +128,20 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # if done:
         #     print("In def step.......", done)
         # info = "this is from my step" + str(done)
-        # return ob, reward, done, touch
+        return ob, reward, done, touch
         ######################################
         # return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
 
     def viewer_setup(self):
-        self.viewer.cam.trackbodyid = 0
+        self.viewer.cam.trackbodyid = 0 # 0
+        self.viewer.cam.lookat[0] = 0 # added by andy
+        self.viewer.cam.lookat[1] = 0 # added by andy
+        self.viewer.cam.lookat[2] = 0 # added by andy
+        self.viewer.cam.elevation = -90  # this denotes the direction of the viewer/ added by andy
+        # print("#######",self.viewer.cam.lookat)
+        # print(self.viewer.cam)
 
+        # print(type(self.viewer.cam.lookat))
     def reset_model(self):
         qpos = self.np_random.uniform(low=-0.1, high=0.1, size=self.model.nq) + self.init_qpos
         while True:
@@ -168,6 +156,33 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def _get_obs(self):
         theta = self.sim.data.qpos.flat[:2]
+        # print("Theta: ", theta * 180 / np.pi) # radian to degree
+        # print("#" * 50)
+        # print("world: ", self.get_body_com("world"))
+        # print("fingertip: ", self.get_body_com("fingertip"))
+        # print("target: ", self.get_body_com("target"))
+
+        # print("Theta: ", theta) # radian to degree
+        # qpos = self.sim.data.qpos
+        # print("qpos: ", type(qpos), qpos.shape)
+        # print(qpos)
+
+        # out = np.concatenate([
+        #     np.cos(theta),
+        #     np.sin(theta),
+        #     self.sim.data.qpos.flat[2:],
+        #     self.sim.data.qvel.flat[:2],
+        #     self.get_body_com("fingertip") - self.get_body_com("target")
+        # ])
+        # print("out: ", out.shape)
+        # print(out)
+        # print("cos(theta): ", np.cos(theta))
+        # print("sin(theta): ", np.sin(theta))
+        # print("qpos: ", self.sim.data.qpos.flat[2:])
+        # print("qvel: ", self.sim.data.qvel.flat[:2])
+        # print("fingertip: ", self.get_body_com("fingertip"))
+        # print("target:", self.get_body_com("target"))
+
         return np.concatenate([
             np.cos(theta),
             np.sin(theta),

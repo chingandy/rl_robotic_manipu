@@ -58,6 +58,8 @@ class Config:
         self.eval_episodes = 10
         self.async_actor = True
         self.tasks = False
+        # added by chingandy
+        self.video_rendering = False
 
     @property
     def eval_env(self):
