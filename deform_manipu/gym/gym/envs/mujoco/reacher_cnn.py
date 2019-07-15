@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
         self.rewards = deque(maxlen = 3)
+        self.lazy = deque(maxlen = 3)
         utils.EzPickle.__init__(self) # some constructor
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
         #action_range = [-0.1, -0.01, -0.005, 0.005, 0.01, 0.1]
@@ -18,16 +19,13 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
 
 
     def step(self, a):
-        # a = self.action_space[a] # self-added
-        # print("In step ation: ", a)
-        ###################################
-        # the reward function from https://arxiv.org/pdf/1511.03791.pdf
         previous_vec = self.get_body_com("fingertip")-self.get_body_com("target")
         prev_dis = np.linalg.norm(previous_vec)
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         vec = self.get_body_com("fingertip")-self.get_body_com("target")
         dis = np.linalg.norm(vec)
+        lazy_dis = np.linalg.norm(self.get_body_com("fingertip") - self.get_body_com("world"))
         #delta_dis = dis - prev_dis
         touch = False # specify if the target is touched or not
         gamma = 0.25
@@ -108,15 +106,20 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
         #
         #self.rewards.append(reward)
         """ Reward function 4 """
-        beta = 100
+       # beta = 100
 
-        reward_dist = - dis
-        reward_ctrl = - np.square(a).sum()
-        reward_vel = - beta * self.sim.data.qvel.flat[0] # add penalty to the velocity
-        reward = reward_dist + reward_ctrl + reward_vel
-        if dis < 0.05: # original setting: 0.008 => too strict
+        #reward_dist = - dis
+        #reward_ctrl = - np.square(a).sum()
+        #reward_vel = - beta * self.sim.data.qvel.flat[0] # add penalty to the velocity
+        #reward = reward_dist + reward_ctrl + reward_vel
+        reward = - dis
+        if dis < 0.1: # original setting: 0.008 => too strict
              print("Near the target, distance: ", dis)
-        if  dis <= 0.02:
+             #plt.axis('off')
+             #plt.imshow(ob)
+             #plt.savefig('show_near.png',transparent = True, bbox_inches = 'tight', pad_inches = 0)
+             #print("##########################Image saved.###########################")
+        if  dis <= 0.08:
             print("#"*100)
             print("Target touched!")
             print("#"*100)
@@ -125,9 +128,25 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
             done = True
             return ob, reward, done, touch
 
-        if prev_dis < dis:
-            reward -= 100
-
+            
+        if abs(prev_dis - dis) / prev_dis <= 0.02:
+            print("Might fall into a lazy behaviour!")
+            
+        self.lazy.append(lazy_dis)
+        if len(self.lazy) < 3:
+            pass
+        else:
+            l = True 
+            for x in self.lazy:
+                if x >  0.1:
+                    l = False
+                    break
+            if l:
+                print("LAZY")
+                done = True
+                reward -= 1000
+        
+        """ Reward function 4 """
 
         #self.rewards.append(reward)
         ###################################

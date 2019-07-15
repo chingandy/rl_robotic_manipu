@@ -8,7 +8,6 @@ from keras.layers import Dense
 from keras.optimizers import Adam, SGD, RMSprop
 from keras.models import Sequential, load_model
 import os
-from IPython.core.debugger import set_trace
 
 EPISODES = 2000#Maximum number of episodes
 INITIAL_EPSILON = 1.0 # Initial value of epsilon in epsilon-greedy

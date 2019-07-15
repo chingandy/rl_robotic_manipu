@@ -1,7 +1,7 @@
 
 # Created by https://www.gitignore.io/api/python
 
-
+deep_rl/
 .DS_Store
 result/
 models/
