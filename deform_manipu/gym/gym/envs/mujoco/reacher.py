@@ -7,7 +7,10 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
 <<<<<<< HEAD
+=======
+<<<<<<< HEAD
 
+>>>>>>> bbca4ea5a32afef7be3230d7568eaeca876b38ac
         """ Enable this block if want to train in the discrete action space """
         # action_range = [-0.1, -0.01, -0.005, 0.005, 0.01, 0.1]
         # action_range = [0.05, -0.05]
@@ -17,10 +20,15 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def step(self, a):
         """ Original reward fucntion """
         ################################################################
+<<<<<<< HEAD
+
+    def step(self, a):
+=======
 =======
 
     def step(self, a):
 >>>>>>> 812e1d69e1785d5425dfefc4e6ed25959f53799d
+>>>>>>> bbca4ea5a32afef7be3230d7568eaeca876b38ac
         vec = self.get_body_com("fingertip")-self.get_body_com("target")
         reward_dist = - np.linalg.norm(vec)
         reward_ctrl = - np.square(a).sum()
@@ -30,6 +38,9 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         done = False
         return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
 <<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> bbca4ea5a32afef7be3230d7568eaeca876b38ac
         # return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
         ####################################################################
         # previous_vec = self.get_body_com("fingertip")-self.get_body_com("target")

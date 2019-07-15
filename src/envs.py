@@ -8,18 +8,19 @@ import os
 import gym
 import numpy as np
 import torch
+from gym import wrappers
 from gym.spaces.box import Box
 from gym.spaces.discrete import Discrete
 
 from baselines.common.atari_wrappers import make_atari, wrap_deepmind
 from baselines.common.atari_wrappers import FrameStack as FrameStack_
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv, VecEnv
-
+import time
 from utils import *
 
 
 # adapted from https://github.com/ikostrikov/pytorch-a2c-ppo-acktr/blob/master/envs.py
-def make_env(env_id, seed, rank, episode_life=True):
+def make_env(env_id, seed, rank, video_rendering, episode_life=True):
     def _thunk():
         random_seed(seed)
         if env_id.startswith("dm"):
@@ -28,6 +29,9 @@ def make_env(env_id, seed, rank, episode_life=True):
             env = dm_control2gym.make(domain_name=domain, task_name=task)
         else:
             env = gym.make(env_id)
+            if video_rendering:
+                env = wrappers.Monitor(env, './videos/' + str(time.localtime().tm_min) + '_' + str(time.localtime().tm_sec) + '/')
+
         is_atari = hasattr(gym.envs, 'atari') and isinstance(
             env.unwrapped, gym.envs.atari.atari_env.AtariEnv)
         if is_atari:
@@ -147,7 +151,7 @@ class DummyVecEnv(VecEnv):
 
 class Task:
     def __init__(self,
-                 name,
+                 name, video_rendering,
                  num_envs=1,
                  single_process=True,
                  log_dir=None,
@@ -155,7 +159,7 @@ class Task:
                  seed=np.random.randint(int(1e5))):
         if log_dir is not None:
             mkdir(log_dir)
-        envs = [make_env(name, seed, i, episode_life) for i in range(num_envs)]
+        envs = [make_env(name, seed, i, video_rendering, episode_life) for i in range(num_envs)]
         if single_process:
             Wrapper = DummyVecEnv
         else:
