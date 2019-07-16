@@ -1,5 +1,4 @@
 
-# Created by https://www.gitignore.io/api/python
 src/log/
 deep_rl/
 .DS_Store
@@ -11,6 +10,8 @@ videos/
 tf_log/
 
 
+
+# Created by https://www.gitignore.io/api/python
 
 ### Python ###
 # Byte-compiled / optimized / DLL files

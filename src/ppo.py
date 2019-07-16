@@ -53,7 +53,7 @@ class BaseNet:
     def __init__(self):
         pass
 
-
+# TODO: look into nn.init.orthogonal_
 def layer_init(layer, w_scale=1.0):
     nn.init.orthogonal_(layer.weight.data)
     layer.weight.data.mul_(w_scale)
@@ -69,15 +69,16 @@ class GaussianActorCriticNet(nn.Module, BaseNet):
                  actor_body=None,
                  critic_body=None):
         super(GaussianActorCriticNet, self).__init__()
-        if phi_body is None: phi_body = DummyBody(state_dim)
-        if actor_body is None: actor_body = DummyBody(phi_body.feature_dim)
-        if critic_body is None: critic_body = DummyBody(phi_body.feature_dim)
+        if phi_body is None: phi_body = DummyBody(state_dim) # no use in this case actually
+        if actor_body is None: actor_body = DummyBody(phi_body.feature_dim) # actor (policy)
+        if critic_body is None: critic_body = DummyBody(phi_body.feature_dim) # critic
         self.phi_body = phi_body
         self.actor_body = actor_body
         self.critic_body = critic_body
-        self.fc_action = layer_init(nn.Linear(actor_body.feature_dim, action_dim), 1e-3)
-        self.fc_critic = layer_init(nn.Linear(critic_body.feature_dim, 1), 1e-3)
+        self.fc_action = layer_init(nn.Linear(actor_body.feature_dim, action_dim), 1e-3) # fully-connected layer for the probability distribution over actions
+        self.fc_critic = layer_init(nn.Linear(critic_body.feature_dim, 1), 1e-3) # fully-connected layer for the state-value function, output: one dimension
 
+        """ the parameters for the actor and the crititic """
         self.actor_params = list(self.actor_body.parameters()) + list(self.fc_action.parameters())
         self.critic_params = list(self.critic_body.parameters()) + list(self.fc_critic.parameters())
         self.phi_params = list(self.phi_body.parameters())
@@ -91,8 +92,8 @@ class GaussianActorCriticNet(nn.Module, BaseNet):
         phi_a = self.actor_body(phi)
         phi_v = self.critic_body(phi)
         mean = torch.tanh(self.fc_action(phi_a))
-        v = self.fc_critic(phi_v)
-        dist = torch.distributions.Normal(mean, F.softplus(self.std))
+        v = self.fc_critic(phi_v) # state-value function
+        dist = torch.distributions.Normal(mean, F.softplus(self.std)) # distribution over actions
         if action is None:
             action = dist.sample()
         log_prob = dist.log_prob(action).sum(-1).unsqueeze(-1)
@@ -108,7 +109,7 @@ class FCBody(nn.Module):
         super(FCBody, self).__init__()
         dims = (state_dim,) + hidden_units
         self.layers = nn.ModuleList(
-            [layer_init(nn.Linear(dim_in, dim_out)) for dim_in, dim_out in zip(dims[:-1], dims[1:])])
+            [layer_init(nn.Linear(dim_in, dim_out)) for dim_in, dim_out in zip(dims[:-1], dims[1:])]) # create the input-output dimension pairs
         self.gate = gate
         self.feature_dim = dims[-1]
 
@@ -229,6 +230,7 @@ class PPOAgent(BaseAgent):
             prediction = self.network(states)
             next_states, rewards, terminals, info = self.task.step(to_np(prediction['a']))
             self.record_online_return(info)
+            #TODO: check out these normalizers
             rewards = config.reward_normalizer(rewards)
             next_states = config.state_normalizer(next_states)
             storage.add(prediction)
