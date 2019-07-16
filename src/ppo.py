@@ -53,7 +53,7 @@ class BaseNet:
     def __init__(self):
         pass
 
-
+# TODO: look into nn.init.orthogonal_
 def layer_init(layer, w_scale=1.0):
     nn.init.orthogonal_(layer.weight.data)
     layer.weight.data.mul_(w_scale)
@@ -69,15 +69,16 @@ class GaussianActorCriticNet(nn.Module, BaseNet):
                  actor_body=None,
                  critic_body=None):
         super(GaussianActorCriticNet, self).__init__()
-        if phi_body is None: phi_body = DummyBody(state_dim)
-        if actor_body is None: actor_body = DummyBody(phi_body.feature_dim)
-        if critic_body is None: critic_body = DummyBody(phi_body.feature_dim)
+        if phi_body is None: phi_body = DummyBody(state_dim) # no use in this case actually
+        if actor_body is None: actor_body = DummyBody(phi_body.feature_dim) # actor (policy)
+        if critic_body is None: critic_body = DummyBody(phi_body.feature_dim) # critic
         self.phi_body = phi_body
         self.actor_body = actor_body
         self.critic_body = critic_body
-        self.fc_action = layer_init(nn.Linear(actor_body.feature_dim, action_dim), 1e-3)
-        self.fc_critic = layer_init(nn.Linear(critic_body.feature_dim, 1), 1e-3)
+        self.fc_action = layer_init(nn.Linear(actor_body.feature_dim, action_dim), 1e-3) # fully-connected layer for the probability distribution over actions
+        self.fc_critic = layer_init(nn.Linear(critic_body.feature_dim, 1), 1e-3) # fully-connected layer for the state-value function, output: one dimension
 
+        """ the parameters for the actor and the crititic """
         self.actor_params = list(self.actor_body.parameters()) + list(self.fc_action.parameters())
         self.critic_params = list(self.critic_body.parameters()) + list(self.fc_critic.parameters())
         self.phi_params = list(self.phi_body.parameters())
@@ -91,8 +92,8 @@ class GaussianActorCriticNet(nn.Module, BaseNet):
         phi_a = self.actor_body(phi)
         phi_v = self.critic_body(phi)
         mean = torch.tanh(self.fc_action(phi_a))
-        v = self.fc_critic(phi_v)
-        dist = torch.distributions.Normal(mean, F.softplus(self.std))
+        v = self.fc_critic(phi_v) # state-value function
+        dist = torch.distributions.Normal(mean, F.softplus(self.std)) # distribution over actions
         if action is None:
             action = dist.sample()
         log_prob = dist.log_prob(action).sum(-1).unsqueeze(-1)
@@ -108,7 +109,7 @@ class FCBody(nn.Module):
         super(FCBody, self).__init__()
         dims = (state_dim,) + hidden_units
         self.layers = nn.ModuleList(
-            [layer_init(nn.Linear(dim_in, dim_out)) for dim_in, dim_out in zip(dims[:-1], dims[1:])])
+            [layer_init(nn.Linear(dim_in, dim_out)) for dim_in, dim_out in zip(dims[:-1], dims[1:])]) # create the input-output dimension pairs
         self.gate = gate
         self.feature_dim = dims[-1]
 
@@ -141,120 +142,56 @@ class BaseAgent:
     def eval_step(self, state):
         raise NotImplementedError
 
-    def act(self, state, memory):
-        state = torch.from_numpy(state).float().to(device)
-        action_probs = self.action_layer(state)
-        dist = Categorical(action_probs)
-        action = dist.sample()
+    def eval_episode(self):
+        env = self.config.eval_env
+        state = env.reset()
+        while True:
+            action = self.eval_step(state)
+            state, reward, done, info = env.step(action)
+            ret = info[0]['episodic_return']
+            if ret is not None:
+                break
+        return ret
 
-        memory.states.append(state)
-        memory.actions.append(action)
-        memory.logprobs.append(dist.log_prob(action))
+    def eval_episodes(self):
+        episodic_returns = []
+        for ep in range(self.config.eval_episodes):
+            total_rewards = self.eval_episode()
+            episodic_returns.append(np.sum(total_rewards))
+        self.logger.info('steps %d, episodic_return_test %.2f(%.2f)' % (
+            self.total_steps, np.mean(episodic_returns), np.std(episodic_returns) / np.sqrt(len(episodic_returns))
+        ))
+        self.logger.add_scalar('episodic_return_test', np.mean(episodic_returns), self.total_steps)
+        return {
+            'episodic_return_test': np.mean(episodic_returns),
+        }
 
-        return action.item()
+    def record_online_return(self, info, offset=0):
+        if isinstance(info, dict):
+            ret = info['episodic_return']
+            if ret is not None:
+                self.logger.add_scalar('episodic_return_train', ret, self.total_steps + offset)
+                self.logger.info('steps %d, episodic_return_train %s' % (self.total_steps + offset, ret))
+        elif isinstance(info, tuple):
+            for i, info_ in enumerate(info):
+                self.record_online_return(info_, i)
+        else:
+            raise NotImplementedError
 
-    def evaluate(self, state, action):
-        action_probs = self.action_layer(state)
-        dist = Categorical(action_probs)
+    def switch_task(self):
+        config = self.config
+        if not config.tasks:
+            return
+        segs = np.linspace(0, config.max_steps, len(config.tasks) + 1)
+        if self.total_steps > segs[self.task_ind + 1]:
+            self.task_ind += 1
+            self.task = config.tasks[self.task_ind]
+            self.states = self.task.reset()
+            self.states = config.state_normalizer(self.states)
 
-        action_logprobs = dist.log_prob(action)
-        dist_entropy = dist.entropy()
-
-        state_value = self.value_layer(state)
-
-        return action_logprobs, torch.squeeze(state_value), dist_entropy
-
-class PPO:
-    def __init__(self, state_dim, action_dim, n_latent_var, lr, betas, gamma, K_epochs, eps_clip):
-        self.lr = lr
-        self.betas = betas
-        self.gamma = gamma
-        self.eps_clip = eps_clip
-        self.K_epochs = K_epochs
-
-        self.policy = ActorCritic(state_dim, action_dim, n_latent_var).to(device)
-        self.optimizer = torch.optim.Adam(self.policy.parameters(),
-                                              lr=lr, betas=betas)
-        self.policy_old = ActorCritic(state_dim, action_dim, n_latent_var).to(device)
-
-        self.MseLoss = nn.MSELoss()
-
-    def update(self, memory):
-        # Monte Carlo estimate of state rewards:
-        rewards = []
-        discounted_reward = 0
-        for reward in reversed(memory.rewards):
-            discounted_reward = reward + (self.gamma * discounted_reward)
-            rewards.insert(0, discounted_reward)
-
-        # Normalizing the rewards:
-        rewards = torch.tensor(rewards).to(device)
-        rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
-
-        # convert list to tensor
-        old_states = torch.stack(memory.states).to(device).detach()
-        old_actions = torch.stack(memory.actions).to(device).detach()
-        old_logprobs = torch.stack(memory.logprobs).to(device).detach()
-
-        # Optimize policy for K epochs:
-        for _ in range(self.K_epochs):
-            # Evaluating old actions and values :
-            logprobs, state_values, dist_entropy = self.policy.evaluate(old_states, old_actions)
-
-            # Finding the ratio (pi_theta / pi_theta__old):
-            ratios = torch.exp(logprobs - old_logprobs.detach())
-
-            # Finding Surrogate Loss:
-            advantages = rewards - state_values.detach()
-            surr1 = ratios * advantages
-            surr2 = torch.clamp(ratios, 1-self.eps_clip, 1+self.eps_clip) * advantages
-            loss = -torch.min(surr1, surr2) + 0.5*self.MseLoss(state_values, rewards) - 0.01*dist_entropy
-
-            # take gradient step
-            self.optimizer.zero_grad()
-            loss.mean().backward()
-            self.optimizer.step()
-
-        # Copy new weights into old policy:
-        self.policy_old.load_state_dict(self.policy.state_dict())
-
-def main():
-    ############## Hyperparameters ##############
-    env_name = "LunarLander-v2"
-    # creating environment
-    env = gym.make(env_name)
-    state_dim = env.observation_space.shape[0]
-    action_dim = 5
-    render = False
-    solved_reward = 230         # stop training if avg_reward > solved_reward
-    log_interval = 20           # print avg reward in the interval
-    max_episodes = 50000        # max training episodes
-    max_timesteps = 300         # max timesteps in one episode
-    n_latent_var = 64           # number of variables in hidden layer
-    update_timestep = 2000      # update policy every n timesteps
-    lr = 0.002
-    betas = (0.9, 0.999)
-    gamma = 0.99                # discount factor
-    K_epochs = 4                # update policy for K epochs
-    eps_clip = 0.2              # clip parameter for PPO
-    random_seed = None
-    #############################################
-
-    if random_seed:
-        torch.manual_seed(random_seed)
-        env.seed(random_seed)
-
-    memory = Memory()
-    ppo = PPO(state_dim, action_dim, n_latent_var, lr, betas, gamma, K_epochs, eps_clip)
-    print(lr,betas)
-
-    # logging variables
-    running_reward = 0
-    avg_length = 0
-    timestep = 0
-
-    # training loop
-    for i_episode in range(1, max_episodes+1):
+    def record_episode(self, dir, env):
+        mkdir(dir)
+        steps = 0
         state = env.reset()
         while True:
             self.record_obs(env, dir, steps)

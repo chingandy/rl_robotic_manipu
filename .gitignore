@@ -1,5 +1,4 @@
 
-# Created by https://www.gitignore.io/api/python
 src/log/
 deep_rl/
 .DS_Store
@@ -7,6 +6,9 @@ result/
 models/
 *.png
 videos/
+*.zip
+
+# Created by https://www.gitignore.io/api/python
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
