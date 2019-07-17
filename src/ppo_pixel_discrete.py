@@ -1,12 +1,14 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.transforms as transforms
 import argparse
 from baselines.common.running_mean_std import RunningMeanStd
 from envs import *
 import numpy as np
 from utils import *
 from skimage.io import imsave
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Storage:
     def __init__(self, size, keys=None):
@@ -60,63 +62,72 @@ def layer_init(layer, w_scale=1.0):
     nn.init.constant_(layer.bias.data, 0)
     return layer
 
-
-class GaussianActorCriticNet(nn.Module, BaseNet):
+class CategoricalActorCriticNet(nn.Module, BaseNet):
     def __init__(self,
                  state_dim,
                  action_dim,
                  phi_body=None,
                  actor_body=None,
                  critic_body=None):
-        super(GaussianActorCriticNet, self).__init__()
-        if phi_body is None: phi_body = DummyBody(state_dim) # no use in this case actually
-        if actor_body is None: actor_body = DummyBody(phi_body.feature_dim) # actor (policy)
-        if critic_body is None: critic_body = DummyBody(phi_body.feature_dim) # critic
+        super(CategoricalActorCriticNet, self).__init__()
+        if phi_body is None: phi_body = DummyBody(state_dim)
+        if actor_body is None: actor_body = DummyBody(phi_body.feature_dim)
+        if critic_body is None: critic_body = DummyBody(phi_body.feature_dim)
         self.phi_body = phi_body
         self.actor_body = actor_body
         self.critic_body = critic_body
-        self.fc_action = layer_init(nn.Linear(actor_body.feature_dim, action_dim), 1e-3) # fully-connected layer for the probability distribution over actions
-        self.fc_critic = layer_init(nn.Linear(critic_body.feature_dim, 1), 1e-3) # fully-connected layer for the state-value function, output: one dimension
+        self.fc_action = layer_init(nn.Linear(actor_body.feature_dim, action_dim), 1e-3)
+        self.fc_critic = layer_init(nn.Linear(critic_body.feature_dim, 1), 1e-3)
 
-        """ the parameters for the actor and the crititic """
         self.actor_params = list(self.actor_body.parameters()) + list(self.fc_action.parameters())
         self.critic_params = list(self.critic_body.parameters()) + list(self.fc_critic.parameters())
         self.phi_params = list(self.phi_body.parameters())
-
-        self.std = nn.Parameter(torch.zeros(action_dim))
         self.to(Config.DEVICE)
 
     def forward(self, obs, action=None):
-        obs = tensor(obs)
+        # change the dimension order numpy.ndarray (H x W x C) in the range [0, 255] to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0].
+
+        obs = np.swapaxes(obs,-2, -1)
+        obs = np.swapaxes(obs,-3, -2)
+        #image_transform = transforms.Compose([
+        #transforms.ToTensor(),
+        #])
+        #obs = image_transform(obs)
+        obs = tensor(obs).to(device=device, dtype=torch.float)
         phi = self.phi_body(obs)
         phi_a = self.actor_body(phi)
         phi_v = self.critic_body(phi)
-        mean = torch.tanh(self.fc_action(phi_a))
-        v = self.fc_critic(phi_v) # state-value function
-        dist = torch.distributions.Normal(mean, F.softplus(self.std)) # distribution over actions
+        logits = self.fc_action(phi_a)
+        v = self.fc_critic(phi_v)
+        dist = torch.distributions.Categorical(logits=logits)
         if action is None:
             action = dist.sample()
-        log_prob = dist.log_prob(action).sum(-1).unsqueeze(-1)
-        entropy = dist.entropy().sum(-1).unsqueeze(-1)
+        log_prob = dist.log_prob(action).unsqueeze(-1)
+        entropy = dist.entropy().unsqueeze(-1)
         return {'a': action,
                 'log_pi_a': log_prob,
                 'ent': entropy,
-                'mean': mean,
                 'v': v}
 
-class FCBody(nn.Module):
-    def __init__(self, state_dim, hidden_units=(64, 64), gate=F.relu):
-        super(FCBody, self).__init__()
-        dims = (state_dim,) + hidden_units
-        self.layers = nn.ModuleList(
-            [layer_init(nn.Linear(dim_in, dim_out)) for dim_in, dim_out in zip(dims[:-1], dims[1:])]) # create the input-output dimension pairs
-        self.gate = gate
-        self.feature_dim = dims[-1]
+
+
+
+class NatureConvBody(nn.Module):
+    def __init__(self, in_channels=4):
+        super(NatureConvBody, self).__init__()
+        self.feature_dim = 512
+        self.conv1 = layer_init(nn.Conv2d(in_channels, 32, kernel_size=8, stride=4))
+        self.conv2 = layer_init(nn.Conv2d(32, 64, kernel_size=4, stride=2))
+        self.conv3 = layer_init(nn.Conv2d(64, 64, kernel_size=3, stride=1))
+        self.fc4 = layer_init(nn.Linear(28 * 28 * 64, self.feature_dim))
 
     def forward(self, x):
-        for layer in self.layers:
-            x = self.gate(layer(x))
-        return x
+        y = F.relu(self.conv1(x))
+        y = F.relu(self.conv2(y))
+        y = F.relu(self.conv3(y))
+        y = y.view(y.size(0), -1)
+        y = F.relu(self.fc4(y))
+        return y
 
 
 class BaseAgent:
@@ -211,12 +222,13 @@ class BaseAgent:
         obs = env.render(mode='rgb_array')
         imsave('%s/%04d.png' % (dir, steps), obs)
 
+
 class PPOAgent(BaseAgent):
     def __init__(self, config):
         BaseAgent.__init__(self, config)
         self.config = config
         self.task = config.task_fn()
-        self.network = config.network_fn()
+        self.network = config.network_fn().to(device)
         self.opt = config.optimizer_fn(self.network.parameters())
         self.total_steps = 0
         self.states = self.task.reset()
@@ -226,11 +238,12 @@ class PPOAgent(BaseAgent):
         config = self.config
         storage = Storage(config.rollout_length)
         states = self.states
+        states = torch.tensor(states).to(device)
         for _ in range(config.rollout_length):
             prediction = self.network(states)
             next_states, rewards, terminals, info = self.task.step(to_np(prediction['a']))
-            if info['episodic_return'] is not None:
-                self.episodic_returns.append(info['episodic_return'])
+            if info[0]['episodic_return'] is not None:
+                self.episodic_returns.append(info[0]['episodic_return'])
             self.record_online_return(info)
             #TODO: check out these normalizers
             rewards = config.reward_normalizer(rewards)
@@ -289,22 +302,23 @@ class PPOAgent(BaseAgent):
                 nn.utils.clip_grad_norm_(self.network.parameters(), config.gradient_clip) # do gradient clipping in-place
                 self.opt.step()
 
-def ppo_continuous(**kwargs):
+def ppo_pixel(**kwargs):
     generate_tag(kwargs)
     kwargs.setdefault('log_level', 0)
     config = Config()
     config.merge(kwargs)
-
-    config.task_fn = lambda: Task(config.game, config.video_rendering)
+    config.video_rendering = False
+    config.task_fn = lambda: Task(config.game, config.video_rendering, num_envs=config.num_workers)
     config.eval_env = config.task_fn()
-
-    config.network_fn = lambda: GaussianActorCriticNet(
-        config.state_dim, config.action_dim, actor_body=FCBody(config.state_dim, gate=torch.tanh),
-        critic_body=FCBody(config.state_dim, gate=torch.tanh))
-    config.optimizer_fn = lambda params: torch.optim.Adam(params, 3e-4, eps=1e-5)
+    config.num_workers = 1
+    config.optimizer_fn = lambda params: torch.optim.RMSprop(params, lr=0.00025, alpha=0.99, eps=1e-5)
+    config.network_fn = lambda: CategoricalActorCriticNet(config.state_dim, config.action_dim, NatureConvBody(in_channels=3))
+    config.state_normalizer = ImageNormalizer()
+    config.reward_normalizer = SignNormalizer()
     config.discount = 0.99
     config.use_gae = True
     config.gae_tau = 0.95
+    config.entropy_weight = 0.01
     config.gradient_clip = 0.5
     config.rollout_length = 2048
     config.optimization_epochs = 10
@@ -312,16 +326,17 @@ def ppo_continuous(**kwargs):
     config.ppo_ratio_clip = 0.2
     config.log_interval = 2048
     config.max_steps = 1e6
-    config.state_normalizer = MeanStdNormalizer()
-    config.video_rendering = True # set to False if no need to render videos
     config.save_interval = 10000
+
+
+
 
     agent = PPOAgent(config)
     run_steps(agent)
     # plot the episodic returns
     import pylab
     pylab.figure(0)
-    pylab.plot(agent.episodic_returns, , 'b')
+    pylab.plot(agent.episodic_returns, 'b')
     pylab.xlabel("Episodes")
     pylab.ylabel("Episodic return")
     pylab.savefig("pic/epic_return.png")
@@ -334,5 +349,5 @@ if __name__ == '__main__':
     set_one_thread()
     random_seed()
     select_device(-1)
-    env = "Reacher-v2"
-    ppo_continuous(game=env)
+    env = "Reacher-v101"
+    ppo_pixel(game=env)

@@ -54,7 +54,7 @@ def make_env(env_id, seed, rank, video_rendering, episode_life=True):
     return _thunk
 
 
-class OriginalReturnWrapper(gym.Wrapper):
+class OriginalReturnWrapper(gym.Wrapper): # add the key 'episodic_return' in the dictionary info
     def __init__(self, env):
         gym.Wrapper.__init__(self, env)
         self.total_rewards = 0
