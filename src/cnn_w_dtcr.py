@@ -110,7 +110,7 @@ class DQNAgent:
         output = Dense(self.action_size)(output)
         model = Model(inputs=[main_input, aux_input], output=output)
         opt = Adam(lr=self.learning_rate, decay=1e-6)
-        model.compile(loss='mse', optimizer=opt)
+        model.compile(loss='logcosh', optimizer=opt)
        # plot_model(model, to_file='plot_model.png')
         return model
 ###############################################################################

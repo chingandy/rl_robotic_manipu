@@ -55,6 +55,7 @@ def make_env(env_id, seed, rank, video_rendering, episode_life=True):
 
 
 class OriginalReturnWrapper(gym.Wrapper):
+    print("In class Originalreturnwrapper")
     def __init__(self, env):
         gym.Wrapper.__init__(self, env)
         self.total_rewards = 0
@@ -170,6 +171,8 @@ class Task:
         self.state_dim = int(np.prod(self.env.observation_space.shape))
 
         self.action_space = self.env.action_space
+        if name == "Reacher-v101":
+            self.action_dim = len(self.action_space)
         if isinstance(self.action_space, Discrete):
             self.action_dim = self.action_space.n
         elif isinstance(self.action_space, Box):
@@ -183,4 +186,5 @@ class Task:
     def step(self, actions):
         if isinstance(self.action_space, Box):
             actions = np.clip(actions, self.action_space.low, self.action_space.high)
+        _, _, _, info = self.env.step(actions)
         return self.env.step(actions)

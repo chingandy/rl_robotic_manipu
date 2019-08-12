@@ -221,7 +221,7 @@ class PPOAgent(BaseAgent):
         self.total_steps = 0
         self.states = self.task.reset()
         self.states = config.state_normalizer(self.states)
-
+        self.episodic_returns = []
     def step(self):
         config = self.config
         storage = Storage(config.rollout_length)
@@ -229,13 +229,16 @@ class PPOAgent(BaseAgent):
         for _ in range(config.rollout_length):
             prediction = self.network(states)
             next_states, rewards, terminals, info = self.task.step(to_np(prediction['a']))
+            #print("info: ", info)
+            if info[0]['episodic_return'] is not None:
+                self.episodic_returns.append(info[0]['episodic_return'])
             self.record_online_return(info)
             #TODO: check out these normalizers
             rewards = config.reward_normalizer(rewards)
             next_states = config.state_normalizer(next_states)
             storage.add(prediction)
             storage.add({'r': tensor(rewards).unsqueeze(-1),
-                         'm': tensor(1 - terminals).unsqueeze(-1),
+                         'm': tensor(1 - terminals).unsqueeze(-1), # to decide where the state is a terminal state
                          's': tensor(states)})
             states = next_states
             self.total_steps += config.num_workers
@@ -245,45 +248,46 @@ class PPOAgent(BaseAgent):
         storage.add(prediction)
         storage.placeholder()
 
+        """ Calculate the advantage function for each state """
         advantages = tensor(np.zeros((config.num_workers, 1)))
         returns = prediction['v'].detach()
         for i in reversed(range(config.rollout_length)):
             returns = storage.r[i] + config.discount * storage.m[i] * returns
-            if not config.use_gae:
+            if not config.use_gae:  # TODO: check out general advantage estimate
                 advantages = returns - storage.v[i].detach()
             else:
                 td_error = storage.r[i] + config.discount * storage.m[i] * storage.v[i + 1] - storage.v[i]
                 advantages = advantages * config.gae_tau * config.discount * storage.m[i] + td_error
-            storage.adv[i] = advantages.detach()
-            storage.ret[i] = returns.detach()
+            storage.adv[i] = advantages.detach() # store the advantage of each state in one rollout
+            storage.ret[i] = returns.detach() # store the discounted sum of rewards
 
         states, actions, log_probs_old, returns, advantages = storage.cat(['s', 'a', 'log_pi_a', 'ret', 'adv'])
         actions = actions.detach()
         log_probs_old = log_probs_old.detach()
-        advantages = (advantages - advantages.mean()) / advantages.std()
+        # advantages = (advantages - advantages.mean()) / advantages.std()  # normalize the advantages => do we really need this? seems like it doesn't help a lot
 
         for _ in range(config.optimization_epochs):
-            sampler = random_sample(np.arange(states.size(0)), config.mini_batch_size)
+            sampler = random_sample(np.arange(states.size(0)), config.mini_batch_size) # create a generator of random indices in batches, states.size: 2048, mini_batch_size: 64
             for batch_indices in sampler:
                 batch_indices = tensor(batch_indices).long()
-                sampled_states = states[batch_indices]
+                sampled_states = states[batch_indices]   # this method of slicing only works in pytorch tensors
                 sampled_actions = actions[batch_indices]
                 sampled_log_probs_old = log_probs_old[batch_indices]
                 sampled_returns = returns[batch_indices]
                 sampled_advantages = advantages[batch_indices]
 
-                prediction = self.network(sampled_states, sampled_actions)
+                prediction = self.network(sampled_states, sampled_actions)  # GaussianActorCriticNet
                 ratio = (prediction['log_pi_a'] - sampled_log_probs_old).exp()
                 obj = ratio * sampled_advantages
                 obj_clipped = ratio.clamp(1.0 - self.config.ppo_ratio_clip,
-                                          1.0 + self.config.ppo_ratio_clip) * sampled_advantages
+                                          1.0 + self.config.ppo_ratio_clip) * sampled_advantages # .clamp() is also a special function in pytorch
                 policy_loss = -torch.min(obj, obj_clipped).mean() - config.entropy_weight * prediction['ent'].mean()
 
                 value_loss = 0.5 * (sampled_returns - prediction['v']).pow(2).mean()
 
                 self.opt.zero_grad()
                 (policy_loss + value_loss).backward()
-                nn.utils.clip_grad_norm_(self.network.parameters(), config.gradient_clip)
+                nn.utils.clip_grad_norm_(self.network.parameters(), config.gradient_clip) # do gradient clipping in-place
                 self.opt.step()
 
 def ppo_continuous(**kwargs):
@@ -310,9 +314,20 @@ def ppo_continuous(**kwargs):
     config.log_interval = 2048
     config.max_steps = 1e6
     config.state_normalizer = MeanStdNormalizer()
-    config.video_rendering = True  # set to False if no need to render videos
-    run_steps(PPOAgent(config))
+    config.video_rendering = True # set to False if no need to render videos
+    config.save_interval = 10000
 
+    agent = PPOAgent(config)
+    run_steps(agent)
+    # plot the episodic returns
+    import pylab
+    pylab.figure(0)
+    pylab.plot(agent.episodic_returns, 'b')
+    pylab.xlabel("Episodes")
+    pylab.ylabel("Episodic return")
+    pylab.savefig("pic/epic_return.png")
+    pylab.show()
+    # run_steps(PPOAgent(config))
 
 
 
@@ -324,4 +339,3 @@ if __name__ == '__main__':
     select_device(-1)
     env = "Reacher-v2"
     ppo_continuous(game=env)
-
