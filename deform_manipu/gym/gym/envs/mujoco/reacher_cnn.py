@@ -17,19 +17,28 @@ class ReacherEnvCNN(mujoco_env.MujocoEnv, utils.EzPickle):
         # add_range = [-0.5, 0.5]
         # self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range] + [[y, 0] for y in add_range] + [[0, y] for y in add_range]
 
-
     def step(self, a):
-        previous_vec = self.get_body_com("fingertip")-self.get_body_com("target")
-        prev_dis = np.linalg.norm(previous_vec)
+        vec = self.get_body_com("fingertip")-self.get_body_com("target")
+        reward_dist = - np.linalg.norm(vec)
+        reward_ctrl = - np.square(a).sum()
+        reward = reward_dist + reward_ctrl
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
-        vec = self.get_body_com("fingertip")-self.get_body_com("target")
-        dis = np.linalg.norm(vec)
-        lazy_dis = np.linalg.norm(self.get_body_com("fingertip") - self.get_body_com("world"))
-        #delta_dis = dis - prev_dis
-        touch = False # specify if the target is touched or not
-        gamma = 0.25
         done = False
+        return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
+
+
+        #previous_vec = self.get_body_com("fingertip")-self.get_body_com("target")
+        #prev_dis = np.linalg.norm(previous_vec)
+        #self.do_simulation(a, self.frame_skip)
+        #ob = self._get_obs()
+        #vec = self.get_body_com("fingertip")-self.get_body_com("target")
+        #dis = np.linalg.norm(vec)
+        #lazy_dis = np.linalg.norm(self.get_body_com("fingertip") - self.get_body_com("world"))
+        ##delta_dis = dis - prev_dis
+        #touch = False # specify if the target is touched or not
+        #gamma = 0.25
+        #done = False
         
 
         """ Reward function 1 """

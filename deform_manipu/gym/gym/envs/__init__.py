@@ -248,8 +248,7 @@ register(
 register(
     id='Reacher-v101',
     entry_point='gym.envs.mujoco:ReacherEnvCNN',
-    max_episode_steps=100,
-    #reward_threshold=None,
+    max_episode_steps=50,
     reward_threshold=-3.75,
 )
 
@@ -260,13 +259,6 @@ register(
     reward_threshold=-3.75,
 )
 
-register(
-    id='Reacher-v102',
-    entry_point='gym.envs.mujoco:ReacherEnvCV',
-    max_episode_steps=100, # 50
-    reward_threshold=None,
-    # reward_threshold=-3.75,
-)
 
 register(
     id='Pusher-v2',

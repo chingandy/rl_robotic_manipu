@@ -149,10 +149,10 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # return ob, reward, done, touch
         ######################################
         # return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
-<<<<<<< HEAD
 
-=======
->>>>>>> e2c1602f84dfa4a64c0d06b4fc7bb40eb72c7fb3
+
+
+
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = 0
 
