@@ -94,12 +94,12 @@ class CategoricalActorCriticNet(nn.Module, BaseNet):
         #obs.cpu()
         #obs = np.swapaxes(obs.cpu(),-2, -1) 
         #obs = np.swapaxes(obs,-3, -2)
+
         #image_transform = transforms.Compose([
         #transforms.ToTensor(),
         #])
         #obs = image_transform(obs)
         
-        obs = obs.to(device=Config.DEVICE, dtype=torch.float)
         phi = self.phi_body(obs)
         phi_a = self.actor_body(phi)
         phi_v = self.critic_body(phi)
@@ -327,11 +327,12 @@ def ppo_pixel(**kwargs):
     config.gradient_clip = 0.5
     config.rollout_length = 2048
     config.optimization_epochs = 10
-    config.mini_batch_size = 8 
+    config.mini_batch_size = 64
     config.ppo_ratio_clip = 0.2
     config.log_interval = 2048
     config.max_steps = 1e6
     config.save_interval = 10000
+
 
 
 
