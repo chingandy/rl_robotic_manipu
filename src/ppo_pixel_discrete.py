@@ -27,7 +27,7 @@ class Storage:
             if k not in self.keys:
                 self.keys.append(k)
                 setattr(self, k, [])
-            getattr(self, k).append(v.double())
+            getattr(self, k).append(v)
 
     def placeholder(self):
         for k in self.keys:
@@ -234,7 +234,7 @@ class PPOAgent(BaseAgent):
         BaseAgent.__init__(self, config)
         self.config = config
         self.task = config.task_fn()
-        self.network = config.network_fn().to(config.DEVICE)
+        self.network = config.network_fn()  # don't put .to(device) here
         self.opt = config.optimizer_fn(self.network.parameters())
         self.total_steps = 0
         self.states = self.task.reset()
@@ -244,7 +244,7 @@ class PPOAgent(BaseAgent):
         config = self.config
         storage = Storage(config.rollout_length) 
         states = self.states
-        states = torch.tensor(states).to(config.DEVICE)
+        #states = torch.tensor(states).to(config.DEVICE)
         for _ in range(config.rollout_length):
             prediction = self.network(states)
             next_states, rewards, terminals, info = self.task.step(to_np(prediction['a']))
@@ -270,12 +270,12 @@ class PPOAgent(BaseAgent):
         advantages = tensor(np.zeros((config.num_workers, 1)))
         returns = prediction['v'].detach()
         for i in reversed(range(config.rollout_length)):
-            returns = storage.r[i].double() + config.discount * storage.m[i].double() * returns.double()
+            returns = storage.r[i] + config.discount * storage.m[i] * returns
             if not config.use_gae:  # TODO: check out general advantage estimate
                 advantages = returns - storage.v[i].detach()
             else:
                 td_error = storage.r[i] + config.discount * storage.m[i] * storage.v[i + 1] - storage.v[i]
-                advantages = advantages.double() * config.gae_tau * config.discount * storage.m[i].double() + td_error.double()
+                advantages = advantages * config.gae_tau * config.discount * storage.m[i]+ td_error
             storage.adv[i] = advantages.detach() # store the advantage of each state in one rollout
             storage.ret[i] = returns.detach() # store the discounted sum of rewards
 
@@ -295,16 +295,15 @@ class PPOAgent(BaseAgent):
                 sampled_advantages = advantages[batch_indices]
 
                 prediction = self.network(sampled_states, sampled_actions)  # GaussianActorCriticNet
-                ratio = (prediction['log_pi_a'].double() - sampled_log_probs_old.double()).exp()
+                ratio = (prediction['log_pi_a'] - sampled_log_probs_old).exp()
                 obj = ratio * sampled_advantages
                 obj_clipped = ratio.clamp(1.0 - self.config.ppo_ratio_clip,
                                           1.0 + self.config.ppo_ratio_clip) * sampled_advantages # .clamp() is also a special function in pytorch
                 policy_loss = -torch.min(obj, obj_clipped).mean() - config.entropy_weight * prediction['ent'].mean()
-
-                value_loss = 0.5 * (sampled_returns.double() - prediction['v'].double()).pow(2).mean()
+                value_loss = 0.5 * (sampled_returns- prediction['v']).pow(2).mean()
 
                 self.opt.zero_grad()
-                (policy_loss.float() + value_loss.float()).backward()
+                (policy_loss + value_loss).backward()
                 nn.utils.clip_grad_norm_(self.network.parameters(), config.gradient_clip) # do gradient clipping in-place
                 self.opt.step()
 
@@ -328,7 +327,7 @@ def ppo_pixel(**kwargs):
     config.gradient_clip = 0.5
     config.rollout_length = 2048
     config.optimization_epochs = 10
-    config.mini_batch_size = 64 
+    config.mini_batch_size = 8 
     config.ppo_ratio_clip = 0.2
     config.log_interval = 2048
     config.max_steps = 1e6
@@ -353,6 +352,6 @@ if __name__ == '__main__':
     mkdir('tf_log')
     set_one_thread()
     random_seed()
-    select_device(-1) # select_device(gpu_id)
+    select_device(1) # select_device(gpu_id)
     env = "Reacher-v101"
     ppo_pixel(game=env)
