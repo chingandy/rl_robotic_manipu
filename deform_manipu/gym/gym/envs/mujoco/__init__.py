@@ -17,4 +17,4 @@ from gym.envs.mujoco.striker import StrikerEnv
 from gym.envs.mujoco.yumi import YumiReacherEnv
 from gym.envs.mujoco.franka import FrankaReacherEnv
 from gym.envs.mujoco.reacher_cnn import ReacherEnvCNN
-from gym.envs.mujoco.reacher_cv import ReacherEnvCV
+from gym.envs.mujoco.reacher_detect import ReacherEnvDetect

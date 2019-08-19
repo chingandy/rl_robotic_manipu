@@ -11,6 +11,8 @@ parser.add_argument("-t", "--test", action="store_true", help="test the result a
 
 parser.add_argument("-p", "--path", help="specify the directory of the model.")
 #parser.add_argument("-s", "--steps", type=int, help="specify the number of steps during the test.")
+parser.add_argument("-o", "--observation", help="specify the observation space: pixel, feature_n_detector")
+
 args = parser.parse_args()
 # answer = args.square**2
 if args.gpu:

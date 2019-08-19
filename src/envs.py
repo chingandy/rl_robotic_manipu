@@ -171,7 +171,7 @@ class Task:
         self.state_dim = int(np.prod(self.env.observation_space.shape))
 
         self.action_space = self.env.action_space
-        if name == "Reacher-v101":
+        if name == "Reacher-v101" or name == "Reacher-v102":
             self.action_dim = len(self.action_space)
         if isinstance(self.action_space, Discrete):
             self.action_dim = self.action_space.n

@@ -6,10 +6,6 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
         utils.EzPickle.__init__(self)
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
-        """ Enable this block if want to train in the discrete action space """
-        # action_range = [-0.1, -0.01, -0.005, 0.005, 0.01, 0.1]
-        # action_range = [0.05, -0.05]
-        # self.action_space = [[0, x] for x in action_range] + [[x, 0] for x in action_range] + [[0, 0]]
 
 
     def step(self, a):

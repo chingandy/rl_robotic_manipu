@@ -18,16 +18,7 @@ from gym import wrappers
 from time import time, sleep
 
 
-#logging.basicConfig(filename='logging.txt',level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
-# TODO: still could not make the model utilize the memory of gpus
 import  keras.backend.tensorflow_backend as K
-
-#config = tf.ConfigProto(allow_soft_placement=True)
-#config = tf.ConfigProto(allow_soft_placement=True, device_count={'GPU': 1, 'CPU':4})
-#config.gpu_options.per_process_gpu_memory_fraction = 0.9
-#config.gpu_options.allow_growth = True
-#sess = tf.Session(config=config)
-#K.set_session(sess)
 
 
 EPISODES = 1000  # Default of the number of episodes:  1000
@@ -80,11 +71,9 @@ class DQNAgent:
     #State is the input and the Q Values are the output.
 ###############################################################################
 ###############################################################################
-        #Edit the Neural Network model here
-        #Tip: Consult https://keras.io/getting-started/sequential-model-guide/
     def build_model(self):
         # Architecture from the paper "3D simulation for robot arm control with deep q-learnin"
-	# Define two sets of inputs
+	    # Define two sets of inputs
         main_input = Input(shape=inshape)
         aux_input = Input(shape=(2,))
 
@@ -125,8 +114,6 @@ class DQNAgent:
 ###############################################################################
 ###############################################################################
         #Insert your e-greedy policy code here
-        #Tip 1: Use the random package to generate a random action.
-        #Tip 2: Use keras.model.predict() to compute Q-values from the state.
         if np.random.rand() <= self.epsilon:
             action =  random.randrange(self.action_size)
         else:
@@ -134,7 +121,7 @@ class DQNAgent:
             q_value = self.model.predict([state, obj_pos])
             action =  np.argmax(q_value[0])
         # Annealing epsilon over time
-        if self.epsilon >= FINAL_EPSILON and len(self.memory) >= self.train_start: 
+        if self.epsilon >= FINAL_EPSILON and len(self.memory) >= self.train_start:
             self.epsilon -= self.epsilon_interval
         return action
 
@@ -311,7 +298,7 @@ def main(args):
 
         #Compute Q values for plotting
         tmp = agent.model.predict([test_states, target_pos_test]) # tmp.shape: (1000, 720)
-        max_q[e][:] = np.max(tmp, axis=1) # find the max of Q(s,a) for each state 
+        max_q[e][:] = np.max(tmp, axis=1) # find the max of Q(s,a) for each state
         max_q_mean[e] = np.mean(max_q[e][:]) # find the mean of the maximun values of Q(s,a)
         while not done:
 #
