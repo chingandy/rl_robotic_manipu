@@ -1,5 +1,8 @@
-# rl_robotic_mani
-## How to install the enviroment
+# Deep Reinforcement Learning in Robotic Manipulation
+This repository contains the files I use for my master thesis. The thesis is aiming to investigate three idiotic deep reinforcement learning algorithms under different observation and action space setting.
+
+ 
+## How to set up the enviroment
 1. First of all, you need a MuJoCo license to use MuJoCo.
 2. Follow the instruction here:<https://github.com/openai/mujoco-py#install-mujoco>(Install MuJoCo).
 3. Install MuJoCo:
@@ -58,6 +61,18 @@ gym.error.Error: Tried to reset environment which is not done. While the monitor
 You can find the variable `max_episode_steps` in the directory `gym/gym/envs/__init__.py`.
 
 
+---
+### Playing around with MuJoCo simulator
+1. Put your licence key file to the `/bin` folder in the mujoco folder. In my case, it is located at `~/.mujoco/mujoco200/bin`. (here we assume that you have already installed mujoco)
+2. Add the environment variable: 
+```
+export LD_LIBRARY_PATH=/Users/chingandywu/.mujoco/mujoco200/bin
+export PATH=$PATH:/Users/chingandywu/.mujoco/mujoco200/bin
+```
+3. Give it a try by execute the command under the bin folder: `./simulate ../model/humanoid.xml`
+
+
+---
 # Reacher v2 (OpenAI Gym)
 ## Overview
 
