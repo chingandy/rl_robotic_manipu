@@ -1,8 +1,79 @@
-import numpy as np
-x = np.array([1,2,3]).reshape((1,3))
-y = np.array([4,5,6]).reshape((1,3))
-z = np.concatenate((x, y), axis=0)
-print(z)
+import os
+path_1 = 'chingandywu'
+path_2 = 'master-thesis/code'
+
+print(os.path.join(path_1, path_2))
+
+
+
+# import torch
+# x = torch.tensor([0.1, -0.3, 0.5, -.4])
+# print(x)
+# m = torch.nn.Softmax(dim=0)
+# y = m(x)
+# print(y)
+#
+# # array = [1]
+# # n = np.array(array)
+# # print(n)
+# # if n:
+# #     print("T")
+# # else:
+# #     print("F")
+# # quit()
+# l = []
+# l = np.array(l)
+# print(len(l))
+# quit()
+
+
+
+
+
+
+
+value = 1.512
+print(np.subtract.outer(array, value))
+print(np.abs(np.subtract.outer(array, value)))
+
+indices = np.abs(np.subtract.outer(array, value)).argmin(0)
+print(indices)
+
+
+
+
+
+# m = torch.distributions.Categorical(torch.Tensor([ 0.25, 0.25, 0.25, 0.25 ]))
+# x = m.sample()
+# log_prob = m.log_prob(x)
+# print(x)
+# print(log_prob)
+
+
+
+
+# import csv
+#
+# input_1 = [1,2,3,4]
+# input_2 = [4,5,6,7]
+# # with open('test.csv', mode='a') as log_file:
+# #     writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONE)
+# #     writer.writerow(input_1)
+# #
+# # with open('test.csv', mode='a') as log_file:
+# #     writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONE)
+# #     writer.writerow(input_2)
+#
+#
+# with open('test.csv') as csv_file:
+#     csv_reader = csv.reader(csv_file, delimiter=',')
+#     line_count = 0
+#     for row in csv_reader:
+#         print("Row %d: " % line_count, row)
+#         print(row[0], type(row[0]))
+#
+#         line_count += 1
+#     print('Processed %d lines.' % line_count)
 
 
 # car = {

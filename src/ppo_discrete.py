@@ -9,6 +9,7 @@ import numpy as np
 from utils import *
 from skimage.io import imsave
 from parser import *
+import csv
 #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Storage:
@@ -71,16 +72,25 @@ class CategoricalActorCriticNet(nn.Module, BaseNet):
                  action_dim,
                  phi_body=None,
                  actor_body=None,
-                 critic_body=None):
+                 critic_body=None,
+                 ordinal_distribution=False):
         super(CategoricalActorCriticNet, self).__init__()
         if phi_body is None: phi_body = DummyBody(state_dim)
-        if actor_body is None: actor_body = DummyBody(phi_body.feature_dim)
-        if critic_body is None: critic_body = DummyBody(phi_body.feature_dim)
+        # if actor_body is None: actor_body = DummyBody(phi_body.feature_dim)
+        # if critic_body is None: critic_body = DummyBody(phi_body.feature_dim)
+        if actor_body is None: actor_body = FCBody(phi_body.feature_dim)
+        if critic_body is None: critic_body = FCBody(phi_body.feature_dim)
         self.phi_body = phi_body
         self.actor_body = actor_body
         self.critic_body = critic_body
+        # self.critic_body = critic_body(phi_body.feature_dim)
+        # print("phi_body: ", self.phi_body)
+        # print("actor_body: ", self.actor_body)
+        # print("critic_body: ", self.critic_body)
+        # quit()
         self.fc_action = layer_init(nn.Linear(actor_body.feature_dim, action_dim), 1e-3)
         self.fc_critic = layer_init(nn.Linear(critic_body.feature_dim, 1), 1e-3)
+        self.ordinal_distribution = ordinal_distribution
 
         """ the parameters for the actor and the crititic """
         self.actor_params = list(self.actor_body.parameters()) + list(self.fc_action.parameters())
@@ -103,9 +113,26 @@ class CategoricalActorCriticNet(nn.Module, BaseNet):
         phi_v = self.critic_body(phi)
         logits = self.fc_action(phi_a)
         v = self.fc_critic(phi_v)
-        dist = torch.distributions.Categorical(logits=logits)
+
+        if self.ordinal_distribution:
+            """ Ordinal Distribution Network """
+            sigmoid = torch.nn.Sigmoid()
+            logits =  torch.squeeze(logits, 0)
+            s_i = sigmoid(logits)
+            one_minus_s = tensor(1) - s_i
+            _part_1 = torch.log_(s_i)
+            _part_2 = torch.log_(one_minus_s)
+            ordinal_logits = [torch.sum(_part_1[:i + 1]).item() + torch.sum(_part_2[i+1:]).item() for i in range(len(s_i))]
+            # ordinal_logits = [torch.sum(torch.log_(s_i[:i+1])).item() + torch.sum(torch.log_(one_minus_s[i+1:])).item() for i in range(len(s_i))]
+
+            ordinal_logits = tensor(ordinal_logits)
+            ordinal_logits = torch.unsqueeze(ordinal_logits, dim=0)
+
+            dist = torch.distributions.Categorical(logits=ordinal_logits)
+        else:
+            dist = torch.distributions.Categorical(logits=logits)
         if action is None:
-            action = dist.sample()
+            action = dist.sample()  # action: the ith action in the action space
         log_prob = dist.log_prob(action).unsqueeze(-1)
         entropy = dist.entropy().unsqueeze(-1)
         return {'a': action,
@@ -254,12 +281,17 @@ class PPOAgent(BaseAgent):
         self.episodic_returns = []
     def step(self):
         config = self.config
-        storage = Storage(config.rollout_length)
-        states = self.states
-        #states = torch.tensor(states).to(config.DEVICE)
+        storage = Storage(config.rollout_length) # initialize the storage
+        states = self.states # the starting state
+
+        """ Collect a trajectory """
+        arr_rewards = []
         for _ in range(config.rollout_length):
-            prediction = self.network(states)
+            prediction = self.network(states)  # a: action, log_pi_a: log_prob, ent: entropy, v: value
             next_states, rewards, terminals, info = self.task.step(to_np(prediction['a']))
+
+            arr_rewards.append(rewards)
+
             if info[0]['episodic_return'] is not None:
                 self.episodic_returns.append(info[0]['episodic_return'])
             self.record_online_return(info)
@@ -296,7 +328,11 @@ class PPOAgent(BaseAgent):
         log_probs_old = log_probs_old.detach()
         # advantages = (advantages - advantages.mean()) / advantages.std()  # normalize the advantages => do we really need this? seems like it doesn't help a lot
 
+        """ Update the policy by maximizing the PPO-Clip objective
+            by config.optimization_epochs epochs
+        """
         for _ in range(config.optimization_epochs):
+
             sampler = random_sample(np.arange(states.size(0)), config.mini_batch_size) # create a generator of random indices in batches, states.size: 2048, mini_batch_size: 64
             for batch_indices in sampler:
                 batch_indices = tensor(batch_indices).long()
@@ -324,41 +360,40 @@ def ppo_pixel(**kwargs):
     kwargs.setdefault('log_level', 0)
     config = Config()
     config.merge(kwargs)
-    config.video_rendering = False
-    config.task_fn = lambda: Task(config.game, config.video_rendering, num_envs=config.num_workers)
-    config.eval_env = config.task_fn()
+    config.video_rendering = True
     config.num_workers = 1
+    config.dis_level = args.dis_level if args.dis_level is not None else 7
+    config.task_fn = lambda: Task(config.game, config.video_rendering, config.dis_level, num_envs=config.num_workers)
+    config.eval_env = config.task_fn()
     config.optimizer_fn = lambda params: torch.optim.Adam(params, lr=3e-4, eps=1e-5)
     #config.optimizer_fn = lambda params: torch.optim.RMSprop(params, lr=0.00025, alpha=0.99, eps=1e-5)
-    config.network_fn = lambda: CategoricalActorCriticNet(config.state_dim, config.action_dim, NatureConvBody(in_channels=3))
+    config.network_fn = lambda: CategoricalActorCriticNet(config.state_dim, config.action_dim, NatureConvBody(in_channels=3), ordinal_distribution=False)
     config.state_normalizer = ImageNormalizer()
     config.reward_normalizer = SignNormalizer()
     config.discount = 0.99
     config.use_gae = True
     config.gae_tau = 0.95
     config.entropy_weight = 0.01
-    config.gradient_clip = 0.5
+    config.gradient_clip = 5  # 0.5
     config.rollout_length = 128
     config.optimization_epochs = 10
     config.mini_batch_size = 64
     config.ppo_ratio_clip = 0.2
     config.log_interval = 2048
-    config.max_steps = 1e6
-    config.save_interval = 10000
+    config.max_steps = 3000 if args.num_steps is None else args.num_steps
+    # config.save_interval = 10000
 
 
 
 
     agent = PPOAgent(config)
     run_steps(agent)
-    # plot the episodic returns
-    import pylab
-    pylab.figure(0)
-    pylab.plot(agent.episodic_returns, 'b')
-    pylab.xlabel("Episodes")
-    pylab.ylabel("Episodic return")
-    pylab.savefig("pic/epic_return.png")
-    # run_steps(PPOAgent(config))
+    # Save the episodic return to csv file
+    save_dir = 'data/ppo_discrete/' + args.observation + '_test_l'+ str(args.dis_level) + '.csv'
+    with open(save_dir, mode='a') as log_file:
+        writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        # print("episodic returns: ", agent.episodic_returns)
+        writer.writerow(agent.episodic_returns)
 
 def ppo_feature(**kwargs):
     generate_tag(kwargs)
@@ -368,11 +403,12 @@ def ppo_feature(**kwargs):
 
     config.num_workers = 1 #  originally = 5
     config.video_rendering = False
-    config.task_fn = lambda: Task(config.game, config.video_rendering,num_envs=config.num_workers)
+    config.dis_level = args.dis_level if args.dis_level is not None else 7
+    config.task_fn = lambda: Task(config.game, config.video_rendering, config.dis_level, num_envs=config.num_workers)
     config.eval_env = config.task_fn()
     # config.eval_env = Task(config.game)
     config.optimizer_fn = lambda params: torch.optim.Adam(params, lr=3e-4, eps=1e-5)
-    config.network_fn = lambda: CategoricalActorCriticNet(config.state_dim, config.action_dim, FCBody(config.state_dim))
+    config.network_fn = lambda: CategoricalActorCriticNet(config.state_dim, config.action_dim, FCBody(config.state_dim), ordinal_distribution=False)
     config.discount = 0.99
     config.use_gae = True
     config.gae_tau = 0.95
@@ -385,33 +421,75 @@ def ppo_feature(**kwargs):
     config.log_interval = 128 * 5 * 10
     # added by chingandy
     config.state_normalizer = MeanStdNormalizer()
-    config.max_steps = 1e5
+    config.max_steps = 3000 if args.num_steps is None else args.num_steps
 
     agent = PPOAgent(config)
     run_steps(agent)
+
+
     # plot the episodic returns
-    import pylab
-    pylab.figure(0)
-    pylab.plot(agent.episodic_returns, 'b')
-    pylab.xlabel("Episodes")
-    pylab.ylabel("Episodic return")
-    pylab.savefig("pic/epic_return_feature.png")
+    # import pylab
+    # pylab.figure(0)
+    # pylab.plot(agent.episodic_returns, 'b')
+    # pylab.xlabel("Episodes")
+    # pylab.ylabel("Episodic return")
+    # if args.observation == 'feature_n_detector':
+    #     pylab.savefig("pic/ppo_discrete/feature_n_detector.png")
+    # elif args.observation == 'cart':
+    #     pylab.savefig("pic/ppo_discrete/cartpole.png")
+    # elif args.observation == 'mountain-car':
+    #     pylab.savefig("pic/ppo_discrete/mountain-car.png")
+
+    # Save the episodic return to csv file
+    save_dir = 'data/ppo_discrete/' + args.observation + '_l'+ str(args.dis_level) + '.csv'
+    with open(save_dir, mode='a') as log_file:
+        writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        # print("episodic returns: ", agent.episodic_returns)
+        writer.writerow(agent.episodic_returns)
+
 
 
 
 
 if __name__ == '__main__':
+
+    """
+    specify the following:
+    o: observation space
+    r: random seed
+    l: discretization level
+    g: gpu
+    s: step (optional)
+
+    """
     mkdir('log')
     mkdir('tf_log')
+    mkdir('data')
     set_one_thread()
-    random_seed()
-    select_device(1) # select_device(gpu_id)
+    print("Random seed: ", args.random_seed)
+    print("Discretization level: ", args.dis_level)
+    random_seed(args.random_seed)
+    select_device(0) # select_device(gpu_id)
+
+
     if args.observation == 'pixel':
         env = "Reacher-v101"
         ppo_pixel(game=env)
-    elif args.observation == 'feature_n_detector':
+    elif args.observation == 'feature-n-detector':
         # print("argument parser works")
         env = 'Reacher-v102'
         ppo_feature(game=env)
+
+    elif args.observation == 'feature':
+        env = 'Reacher-v2'
+        ppo_feature(game=env)
     else:
         print("Observation space isn't specified.")
+    # elif args.observation == "cart":
+    #     env = "CartPole-v0"
+    #     ppo_feature(game=env)
+    # elif args.observation == "mountain-car":
+    #     env = "MountainCar-v0"
+    #     ppo_feature(game=env)
+    # else:
+    #     print("Observation space isn't specified.")

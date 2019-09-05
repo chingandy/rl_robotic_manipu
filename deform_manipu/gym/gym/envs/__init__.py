@@ -247,15 +247,15 @@ register(
 # 2D
 register(
     id='Reacher-v101',
-    entry_point='gym.envs.mujoco:ReacherEnvCNN',
-    max_episode_steps=50,
+    entry_point='gym.envs.mujoco:ReacherEnvPixel',
+    max_episode_steps=128,
     reward_threshold=-3.75,
 )
 
 register(
     id='Reacher-v102',
     entry_point='gym.envs.mujoco:ReacherEnvDetect',
-    max_episode_steps=100,
+    max_episode_steps=128,
     # reward_threshold=None,
     reward_threshold=-3.75,
 )
@@ -264,8 +264,8 @@ register(
 register(
     id='Reacher-v2',
     entry_point='gym.envs.mujoco:ReacherEnv',
-    max_episode_steps=50, # 50
-    reward_threshold=-3.75,
+    max_episode_steps=128, # 50
+    reward_threshold=-3.75, # -3.75
 )
 
 

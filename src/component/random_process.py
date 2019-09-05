@@ -22,6 +22,19 @@ class GaussianProcess(RandomProcess):
 
 
 class OrnsteinUhlenbeckProcess(RandomProcess):
+    """
+    The Ornstein-Uhlenbeck process adds time-correlated noise to the actions taken by the deterministic policy.
+
+    The OU process statisfied the following stochastic differential equation:
+    dxt = theta * (mu - xt) * dt + sigma * dWt
+    where Wt denotes the Wiener process
+
+    The Wiener process
+    f_Wt(x) = 1/sprt(2 * pi * t) exp(-x^2/2*t)
+    Wt = Wt - W0 ~ N(0, t)
+    """
+
+
     def __init__(self, size, std, theta=.15, dt=1e-2, x0=None):
         self.theta = theta
         self.mu = 0

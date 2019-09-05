@@ -24,8 +24,11 @@ def run_steps(agent):
         if config.log_interval and not agent.total_steps % config.log_interval:
             agent.logger.info('steps %d, %.2f steps/s' % (agent.total_steps, config.log_interval / (time.time() - t0)))
             t0 = time.time()
+
         if config.eval_interval and not agent.total_steps % config.eval_interval:
             agent.eval_episodes()
+
+        # reach the max_steps and terminate the process
         if config.max_steps and agent.total_steps >= config.max_steps:
             agent.close()
             break

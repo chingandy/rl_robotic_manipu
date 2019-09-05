@@ -8,6 +8,7 @@ import numpy as np
 from utils import *
 from skimage.io import imsave
 from component import *
+from parser import *
 
 class Storage:
     def __init__(self, size, keys=None):
@@ -171,6 +172,7 @@ class BaseAgent:
         return ret
 
     def eval_episodes(self):
+
         episodic_returns = []
         for ep in range(self.config.eval_episodes):
             total_rewards = self.eval_episode()
@@ -179,6 +181,7 @@ class BaseAgent:
             self.total_steps, np.mean(episodic_returns), np.std(episodic_returns) / np.sqrt(len(episodic_returns))
         ))
         self.logger.add_scalar('episodic_return_test', np.mean(episodic_returns), self.total_steps)
+        print("In test return ")
         return {
             'episodic_return_test': np.mean(episodic_returns),
         }
@@ -323,7 +326,7 @@ def ddpg_continuous(**kwargs):
 
     config.task_fn = lambda: Task(config.game, config.video_rendering)
     config.eval_env = config.task_fn()
-    config.max_steps = int(1e6)
+    config.max_steps = int(1e5) # original: 1e6
     config.eval_interval = int(1e4)
     config.eval_episodes = 20
 
@@ -341,7 +344,7 @@ def ddpg_continuous(**kwargs):
         size=(config.action_dim,), std=LinearSchedule(0.2))
     config.warm_up = int(1e4)
     config.target_network_mix = 1e-3
-    config.video_rendering = False
+    config.video_rendering = True
     agent = DDPGAgent(config)
     run_steps(agent)
     # plot the episodic returns
@@ -350,8 +353,8 @@ def ddpg_continuous(**kwargs):
     pylab.plot(agent.episodic_returns, 'b')
     pylab.xlabel("Episodes")
     pylab.ylabel("Episodic return")
-    pylab.savefig("pic/epic_return_ddpg_cont.png")
-    pylab.show()
+    pylab.savefig("pic/ddpg_continuous/epic_return.png")
+    # pylab.show()
     # run_steps(PPOAgent(config))
 
 

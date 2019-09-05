@@ -17,7 +17,8 @@ from baselines.common.atari_wrappers import FrameStack as FrameStack_
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv, VecEnv
 import time
 from utils import *
-
+import itertools
+# import pyglet.window
 
 # adapted from https://github.com/ikostrikov/pytorch-a2c-ppo-acktr/blob/master/envs.py
 def make_env(env_id, seed, rank, video_rendering, episode_life=True):
@@ -55,7 +56,6 @@ def make_env(env_id, seed, rank, video_rendering, episode_life=True):
 
 
 class OriginalReturnWrapper(gym.Wrapper):
-    print("In class Originalreturnwrapper")
     def __init__(self, env):
         gym.Wrapper.__init__(self, env)
         self.total_rewards = 0
@@ -124,11 +124,18 @@ class FrameStack(FrameStack_):
 
 # The original one in baselines is really bad
 class DummyVecEnv(VecEnv):
-    def __init__(self, env_fns):
+    def __init__(self, env_fns, dis_level):
         self.envs = [fn() for fn in env_fns]
         env = self.envs[0]
-        VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space)
+        VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space) # adding the key 'episodic_return' because of VecEnv from the module "baselins"
         self.actions = None
+        if dis_level:
+            action_range = np.linspace(-3.0, 3.0, dis_level)
+            self.action_space = list(itertools.product(action_range, action_range))
+        # if dis_level is not None:
+        #     print("Discretization level: ", dis_level)
+        #     action_range = np.linspace(-3.0, 3.0, dis_level)
+        #     self.action_space = list(itertools.product(action_range, action_range))
 
     def step_async(self, actions):
         self.actions = actions
@@ -152,7 +159,9 @@ class DummyVecEnv(VecEnv):
 
 class Task:
     def __init__(self,
-                 name, video_rendering,
+                 name,
+                 video_rendering,
+                 dis_level=None,
                  num_envs=1,
                  single_process=True,
                  log_dir=None,
@@ -162,18 +171,27 @@ class Task:
             mkdir(log_dir)
         envs = [make_env(name, seed, i, video_rendering, episode_life) for i in range(num_envs)]
         if single_process:
-            Wrapper = DummyVecEnv
+            self.env = DummyVecEnv(envs, dis_level)
         else:
-            Wrapper = SubprocVecEnv
-        self.env = Wrapper(envs)
+            self.env = SubprocVecEnv(envs)
+        # if single_process:
+        #     Wrapper = DummyVecEnv
+        # else:
+        #     Wrapper = SubprocVecEnv
+        # self.env = Wrapper(envs)
         self.name = name
         self.observation_space = self.env.observation_space
         self.state_dim = int(np.prod(self.env.observation_space.shape))
 
         self.action_space = self.env.action_space
-        if name == "Reacher-v101" or name == "Reacher-v102":
+        # self.action_dim = dis_level
+        # if self.action_dim is None:
+        #     print("Please specify the number of bins")
+        #     quit()
+        if dis_level is not None:
+        # if name == "Reacher-v101" or name == "Reacher-v102":
             self.action_dim = len(self.action_space)
-        if isinstance(self.action_space, Discrete):
+        elif isinstance(self.action_space, Discrete):
             self.action_dim = self.action_space.n
         elif isinstance(self.action_space, Box):
             self.action_dim = self.action_space.shape[0]
@@ -186,5 +204,4 @@ class Task:
     def step(self, actions):
         if isinstance(self.action_space, Box):
             actions = np.clip(actions, self.action_space.low, self.action_space.high)
-        _, _, _, info = self.env.step(actions)
         return self.env.step(actions)

@@ -7,6 +7,7 @@ from envs import *
 import numpy as np
 from utils import *
 from skimage.io import imsave
+from parser import *
 
 class Storage:
     def __init__(self, size, keys=None):
@@ -95,7 +96,7 @@ class GaussianActorCriticNet(nn.Module, BaseNet):
         v = self.fc_critic(phi_v) # state-value function
         dist = torch.distributions.Normal(mean, F.softplus(self.std)) # distribution over actions
         if action is None:
-            action = dist.sample()
+            action = dist.sample()  # e.g. action = tensor([[-0.0010, -0.0970]]) , torch.Size([1,2])
         log_prob = dist.log_prob(action).sum(-1).unsqueeze(-1)
         entropy = dist.entropy().sum(-1).unsqueeze(-1)
         return {'a': action,
@@ -306,39 +307,70 @@ def ppo_continuous(**kwargs):
     config.use_gae = True
     config.gae_tau = 0.95
     config.gradient_clip = 0.5
-    config.rollout_length = 2048
+    config.rollout_length = 128 # 2048
     config.optimization_epochs = 10
     config.mini_batch_size = 64
     config.ppo_ratio_clip = 0.2
     config.log_interval = 2048
-    config.max_steps = 1e6
+    config.max_steps = 3000 if args.num_steps is None else args.num_steps
     config.state_normalizer = MeanStdNormalizer()
-    config.video_rendering = False # set to False if no need to render videos
+    config.video_rendering = True # set to False if no need to render videos
     config.save_interval = 10000
 
     agent = PPOAgent(config)
     run_steps(agent)
-    # plot the episodic returns
-    import pylab
-    pylab.figure(0)
-    pylab.plot(agent.episodic_returns, 'b')
-    pylab.xlabel("Episodes")
-    pylab.ylabel("Episodic return")
-    pylab.savefig("pic/epic_return.png")
-    pylab.show()
-    # run_steps(PPOAgent(config))
+    # Save the episodic return to csv file
+    save_dir = 'data/ppo_continuous/' + args.observation + '.csv'
+    with open(save_dir, mode='a') as log_file:
+        writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        # print("episodic returns: ", agent.episodic_returns)
+        writer.writerow(agent.episodic_returns)
+
 
 
 
 if __name__ == '__main__':
+
+
+    """
+    specify the following:
+    o: observation space
+    r: random seed
+    l: discretization level
+    g: gpu
+    s: step (optional)
+
+    """
     mkdir('log')
     mkdir('tf_log')
+    mkdir('data')
     set_one_thread()
-    random_seed()
-    select_device(0)
+    print("Random seed: ", args.random_seed)
+    random_seed(args.random_seed)
+    select_device(0) # select_device(gpu_id)
+
+
+    if args.observation == 'pixel':
+        env = "Reacher-v101"
+        ppo_continuous(game=env)
+    elif args.observation == 'feature-n-detector':
+        # print("argument parser works")
+        env = 'Reacher-v102'
+        ppo_continuous(game=env)
+
+    elif args.observation == 'feature':
+        env = 'Reacher-v2'
+        ppo_continuous(game=env)
+    else:
+        print("Observation space isn't specified.")
+    # mkdir('log')
+    # mkdir('tf_log')
+    # set_one_thread()
+    # random_seed()
+    # select_device(0)
     # env = "Reacher-v2"
-    env = "FrankaReacher-v0"
-    print("#" * 100)
-    print("Env: ", env)
-    print("#" * 100)
-    ppo_continuous(game=env)
+    # # env = "FrankaReacher-v0"
+    # print("#" * 100)
+    # print("Env: ", env)
+    # print("#" * 100)
+    # ppo_continuous(game=env)

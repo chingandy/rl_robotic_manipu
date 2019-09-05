@@ -59,15 +59,15 @@
 
 
 
-                                                <body name="B3_5" pos="0.0 0 0.0">
-                                                
+                                                <!-- <body name="B3_5" pos="0.0 0 0.0">
+
                                                     <composite type="cloth" count="9 9 1" spacing="0.05" flatinertia="0.01" offset =" -0.0 0 0">
                                                         <joint kind="main" damping="0.001"/>
                                                         <pin coord="9 0"/>
                                                         <!--skin material="matcarpet" texcoord="true" inflate="0.005" subgrid="2"/-->
                                                         <geom type="capsule" size="0.015 0.01" rgba=".8 .2 .1 1"/>
                                                     </composite>
-                                                </body>  
+                                                </body>   -->
 
 
 
@@ -99,7 +99,7 @@
                 <skin material="matcarpet" texcoord="true" inflate="0.005" subgrid="2"/>
                 <geom type="capsule" size="0.015 0.01" rgba=".8 .2 .1 1"/>
             </composite>
-        </body-->  
+        </body-->
 
 
 
@@ -118,7 +118,7 @@
         <motor joint="panda_joint7" ctrlrange="-100.0 100.0" ctrllimited="true"/>
         <motor joint="panda_finger_joint1" ctrlrange="-100.0 100.0" ctrllimited="true"/>
         <motor joint="panda_finger_joint2" ctrlrange="-100.0 100.0" ctrllimited="true"/>
-        
+
     </actuator>
 
 
