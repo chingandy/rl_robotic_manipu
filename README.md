@@ -62,13 +62,13 @@ You can find the variable `max_episode_steps` in the directory `gym/gym/envs/__i
 
 
 ## Playing around with MuJoCo simulator
-1. Put your licence key file to the `/bin` folder in the mujoco folder. In my case, it is located at `~/.mujoco/mujoco200/bin`. (here we assume that you have already installed mujoco)
-2. Add the environment variable: 
+1. Put your licence key file to the `/bin` folder in the mujoco folder. In my case, it is located at `~/.mujoco/mujoco200/bin`. (here we assume that you have already installed mujoco)  
+2. Add the environment variable:   
 ```
 export LD_LIBRARY_PATH=/Users/chingandywu/.mujoco/mujoco200/bin
 export PATH=$PATH:/Users/chingandywu/.mujoco/mujoco200/bin
-```
-3. Give it a try by execute the command under the bin folder: `./simulate ../model/humanoid.xml`
+```  
+3. Give it a try by execute the command under the bin folder: `./simulate ../model/humanoid.xml`  
 
 
 ---
