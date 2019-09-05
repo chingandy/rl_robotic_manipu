@@ -1,5 +1,5 @@
 # Deep Reinforcement Learning in Robotic Manipulation
-This repository contains the files I use for my master thesis. The thesis is aiming to investigate three idiotic deep reinforcement learning algorithms under different observation and action space setting.
+This repository contains the files I use for my master thesis. The thesis is aiming to investigate three deep reinforcement learning algorithms under different observation and action space setting.
 
  
 ## How to set up the enviroment
