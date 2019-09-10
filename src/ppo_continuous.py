@@ -8,6 +8,7 @@ import numpy as np
 from utils import *
 from skimage.io import imsave
 from parser import *
+import csv
 
 class Storage:
     def __init__(self, size, keys=None):
@@ -223,6 +224,8 @@ class PPOAgent(BaseAgent):
         self.states = self.task.reset()
         self.states = config.state_normalizer(self.states)
         self.episodic_returns = []
+        self.returns = []
+        self.avg_returns = []
     def step(self):
         config = self.config
         storage = Storage(config.rollout_length)
@@ -232,6 +235,7 @@ class PPOAgent(BaseAgent):
             next_states, rewards, terminals, info = self.task.step(to_np(prediction['a']))
             if info[0]['episodic_return'] is not None:
                 self.episodic_returns.append(info[0]['episodic_return'])
+            # save each
             self.record_online_return(info)
             #TODO: check out these normalizers
             rewards = config.reward_normalizer(rewards)
@@ -253,6 +257,8 @@ class PPOAgent(BaseAgent):
         returns = prediction['v'].detach()
         for i in reversed(range(config.rollout_length)):
             returns = storage.r[i] + config.discount * storage.m[i] * returns
+            self.returns.append(returns.item())  # test
+            self.avg_returns.append(sum(self.returns) / len(self.returns))
             if not config.use_gae:  # TODO: check out general advantage estimate
                 advantages = returns - storage.v[i].detach()
             else:
@@ -314,7 +320,7 @@ def ppo_continuous(**kwargs):
     config.log_interval = 2048
     config.max_steps = 3000 if args.num_steps is None else args.num_steps
     config.state_normalizer = MeanStdNormalizer()
-    config.video_rendering = True # set to False if no need to render videos
+    config.video_rendering = args.video_rendering# set to False if no need to render videos
     config.save_interval = 10000
 
     agent = PPOAgent(config)
@@ -326,6 +332,13 @@ def ppo_continuous(**kwargs):
         # print("episodic returns: ", agent.episodic_returns)
         writer.writerow(agent.episodic_returns)
 
+    # Save the return for each step
+    save_dir = 'data/ppo_continuous/' + args.observation + '_avg-returns.csv'
+    with open(save_dir, mode='a') as log_file:
+        writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        # print("episodic returns: ", agent.episodic_returns)
+        writer.writerow(agent.avg_returns)
+
 
 
 
@@ -336,9 +349,9 @@ if __name__ == '__main__':
     specify the following:
     o: observation space
     r: random seed
-    l: discretization level
     g: gpu
     s: step (optional)
+    v: render videos (default: False)
 
     """
     mkdir('log')
@@ -360,6 +373,12 @@ if __name__ == '__main__':
 
     elif args.observation == 'feature':
         env = 'Reacher-v2'
+        ppo_continuous(game=env)
+    elif args.observation == 'franka-feature':
+        env = 'FrankaReacher-v0'
+        print("*" * 100)
+        print("Using FrankaReacher Env")
+        print("*" * 100)
         ppo_continuous(game=env)
     else:
         print("Observation space isn't specified.")

@@ -15,6 +15,8 @@ parser.add_argument("-r", "--random_seed", type=int,  help="specify the random s
 
 parser.add_argument("-t", "--test", action="store_true", help="test the result and render videos")
 
+parser.add_argument("-v", "--video_rendering", action="store_true", help="render videos") # for ppo
+
 parser.add_argument("-p", "--path", help="specify the directory of the model.")
 #parser.add_argument("-s", "--steps", type=int, help="specify the number of steps during the test.")
 parser.add_argument("-o", "--observation", help="specify the observation space: pixel, feature_n_detector")

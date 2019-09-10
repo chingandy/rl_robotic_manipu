@@ -9,6 +9,7 @@ from utils import *
 from skimage.io import imsave
 from component import *
 from parser import *
+import csv
 
 class Storage:
     def __init__(self, size, keys=None):
@@ -181,7 +182,6 @@ class BaseAgent:
             self.total_steps, np.mean(episodic_returns), np.std(episodic_returns) / np.sqrt(len(episodic_returns))
         ))
         self.logger.add_scalar('episodic_return_test', np.mean(episodic_returns), self.total_steps)
-        print("In test return ")
         return {
             'episodic_return_test': np.mean(episodic_returns),
         }
@@ -244,6 +244,8 @@ class DDPGAgent(BaseAgent):
         self.total_steps = 0
         self.state = None
         self.episodic_returns = []
+        self.returns = []
+        self.avg_returns = []
 
     def soft_update(self, target, src):
         for target_param, param in zip(target.parameters(), src.parameters()):
@@ -273,6 +275,8 @@ class DDPGAgent(BaseAgent):
             action += self.random_process.sample()
         action = np.clip(action, self.task.action_space.low, self.task.action_space.high)
         next_state, reward, done, info = self.task.step(action)
+        self.returns.append(reward.item()) # test
+        self.avg_returns.append(sum(self.returns) / len(self.returns))
         next_state = self.config.state_normalizer(next_state)
         if info[0]['episodic_return'] is not None:
             self.episodic_returns.append(info[0]['episodic_return'])
@@ -326,7 +330,7 @@ def ddpg_continuous(**kwargs):
 
     config.task_fn = lambda: Task(config.game, config.video_rendering)
     config.eval_env = config.task_fn()
-    config.max_steps = int(1e5) # original: 1e6
+    config.max_steps =  3000 if args.num_steps is None else args.num_steps # original: 1e6
     config.eval_interval = int(1e4)
     config.eval_episodes = 20
 
@@ -344,30 +348,81 @@ def ddpg_continuous(**kwargs):
         size=(config.action_dim,), std=LinearSchedule(0.2))
     config.warm_up = int(1e4)
     config.target_network_mix = 1e-3
-    config.video_rendering = True
+    config.video_rendering = args.video_rendering
     agent = DDPGAgent(config)
     run_steps(agent)
+
+    save_dir = 'data/ddpg_continuous/' + args.observation + '.csv'
+    with open(save_dir, mode='a') as log_file:
+        writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        # print("episodic returns: ", agent.episodic_returns)
+        writer.writerow(agent.episodic_returns)
+
+    # Save the return for each step
+    save_dir = 'data/ddpg_continuous/' + args.observation + '_avg-returns.csv'
+    with open(save_dir, mode='a') as log_file:
+        writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        # print("episodic returns: ", agent.episodic_returns)
+        writer.writerow(agent.avg_returns)
+
     # plot the episodic returns
-    import pylab
-    pylab.figure(0)
-    pylab.plot(agent.episodic_returns, 'b')
-    pylab.xlabel("Episodes")
-    pylab.ylabel("Episodic return")
-    pylab.savefig("pic/ddpg_continuous/epic_return.png")
+    # import pylab
+    # pylab.figure(0)
+    # pylab.plot(agent.episodic_returns, 'b')
+    # pylab.xlabel("Episodes")
+    # pylab.ylabel("Episodic return")
+    # pylab.savefig("pic/ddpg_continuous/epic_return.png")
     # pylab.show()
     # run_steps(PPOAgent(config))
 
 
 
 if __name__ == '__main__':
+    """
+    specify the following:
+    o: observation space
+    r: random seed
+    g: gpu
+    s: step (optional)
+    v: render videos (default: False)
+
+    """
     mkdir('log')
     mkdir('tf_log')
+    mkdir('data')
     set_one_thread()
-    random_seed()
-    select_device(0)
-    env = "Reacher-v2"
-    # env = "FrankaReacher-v0"
-    print("#" * 100)
-    print("Env: ", env)
-    print("#" * 100)
-    ddpg_continuous(game=env)
+    print("Random seed: ", args.random_seed)
+    random_seed(args.random_seed)
+    select_device(0) # select_device(gpu_id)
+
+
+    if args.observation == 'pixel':
+        env = "Reacher-v101"
+        ddpg_continuous(game=env)
+    elif args.observation == 'feature-n-detector':
+        # print("argument parser works")
+        env = 'Reacher-v102'
+        ddpg_continuous(game=env)
+
+    elif args.observation == 'feature':
+        env = 'Reacher-v2'
+        ddpg_continuous(game=env)
+    elif args.observation == 'franka-feature':
+        env = 'FrankaReacher-v0'
+        print("*" * 100)
+        print("Using FrankaReacher Env")
+        print("*" * 100)
+        ddpg_continuous(game=env)
+    else:
+        print("Observation space isn't specified.")
+    # mkdir('log')
+    # mkdir('tf_log')
+    # set_one_thread()
+    # random_seed()
+    # select_device(0)
+    # env = "Reacher-v2"
+    # # env = "FrankaReacher-v0"
+    # print("#" * 100)
+    # print("Env: ", env)
+    # print("#" * 100)
+    # ddpg_continuous(game=env)

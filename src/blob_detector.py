@@ -6,7 +6,7 @@ def blob_detector(im):
     # Read image
     # im = cv2.imread("test.png", cv2.IMREAD_GRAYSCALE)
     # im = cv2.imread("blobTest.jpg", cv2.IMREAD_GRAYSCALE)
-    
+
     if im.ndim != 3:
         #print("Current img: ", im.shape)
         im = im[0]
@@ -36,7 +36,6 @@ def blob_detector(im):
 
     # Set up the detector with default parameters
     detector = cv2.SimpleBlobDetector_create()
-
 
     # Detect blobs
     keypoints = detector.detect(im)

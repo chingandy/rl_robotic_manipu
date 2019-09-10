@@ -15,7 +15,7 @@ def load_data(file_dir):
     return data
 
 
-def plot_data(file_list):
+def plot_data(file_list, data_type):
 
 # file_dir = './test.csv'
     colors = ['r', 'g', 'b', 'k', 'c', 'y', 'm'] # matplotlib built-in colors
@@ -26,9 +26,15 @@ def plot_data(file_list):
         # use seaborn to plot the data with five different random seeds
         sns.tsplot(data=data, color=colors[i], linestyle=linestyles[i], ci="sd")
         # our y-axis is "success rate" here
-    plt.ylabel("Episodic returns", fontsize=10)
+    if data_type == 'episodic':
+        plt.ylabel("Episodic returns", fontsize=10)
+        plt.xlabel("Episodes", fontsize=10, labelpad=-1)
+    elif data_type == 'avg':
+        plt.ylabel("Average returns", fontsize=10)
+        plt.xlabel("Time steps", fontsize=10, labelpad=-1)
+
     # our x-axis is iteration number
-    plt.xlabel("Episodes", fontsize=10, labelpad=-1)
+
     # our task is called "Awesome Robot Performance"
     # plt.title("Awesome Robot Performance", fontsize=30)
     # Legend
@@ -42,12 +48,12 @@ def plot_data(file_list):
 
 if __name__ == '__main__':
 
-    import os
+    data_type = 'avg' # 'avg' or 'episodic'
     # test
-    folder_dir = 'data/ppo_discrete/'
+    folder_dir = 'data/ppo_continuous/'
     # file_list = ['feature-n-detector_l5.csv', 'feature-n-detector_l7.csv', 'feature-n-detector_l11.csv']
     # file_list = ['feature_l5.csv', 'feature_l7.csv', 'feature_l11.csv']
     # file_list = ['pixel_l5.csv', 'pixel_l7.csv', 'pixel_l11.csv']
-    file_list = ['pixel_test_l7.csv']
+    file_list = ['feature_avg-returns.csv']
     file_list = [folder_dir + x for x in file_list]
-    plot_data(file_list)
+    plot_data(file_list, data_type)
