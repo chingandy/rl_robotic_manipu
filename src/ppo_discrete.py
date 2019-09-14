@@ -10,6 +10,7 @@ from utils import *
 from skimage.io import imsave
 from parser import *
 import csv
+from torchsummary import summary
 #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Storage:
@@ -76,10 +77,10 @@ class CategoricalActorCriticNet(nn.Module, BaseNet):
                  ordinal_distribution=False):
         super(CategoricalActorCriticNet, self).__init__()
         if phi_body is None: phi_body = DummyBody(state_dim)
-        # if actor_body is None: actor_body = DummyBody(phi_body.feature_dim)
-        # if critic_body is None: critic_body = DummyBody(phi_body.feature_dim)
-        if actor_body is None: actor_body = FCBody(phi_body.feature_dim)
-        if critic_body is None: critic_body = FCBody(phi_body.feature_dim)
+        if actor_body is None: actor_body = DummyBody(phi_body.feature_dim)
+        if critic_body is None: critic_body = DummyBody(phi_body.feature_dim)
+        # if actor_body is None: actor_body = FCBody(phi_body.feature_dim)
+        # if critic_body is None: critic_body = FCBody(phi_body.feature_dim)
         self.phi_body = phi_body
         self.actor_body = actor_body
         self.critic_body = critic_body

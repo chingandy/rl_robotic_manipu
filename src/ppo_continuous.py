@@ -57,9 +57,9 @@ class BaseNet:
 
 # TODO: look into nn.init.orthogonal_
 def layer_init(layer, w_scale=1.0):
-    nn.init.orthogonal_(layer.weight.data)
+    nn.init.orthogonal_(layer.weight.data) # fills the input Tensor with a orthogonal matrix
     layer.weight.data.mul_(w_scale)
-    nn.init.constant_(layer.bias.data, 0)
+    nn.init.constant_(layer.bias.data, 0) # fills the input Tensor with the value in the second argument, 0 in this case
     return layer
 
 
@@ -93,9 +93,12 @@ class GaussianActorCriticNet(nn.Module, BaseNet):
         phi = self.phi_body(obs)
         phi_a = self.actor_body(phi)
         phi_v = self.critic_body(phi)
+
         mean = torch.tanh(self.fc_action(phi_a))
-        v = self.fc_critic(phi_v) # state-value function
         dist = torch.distributions.Normal(mean, F.softplus(self.std)) # distribution over actions
+
+        v = self.fc_critic(phi_v) # state-value function
+
         if action is None:
             action = dist.sample()  # e.g. action = tensor([[-0.0010, -0.0970]]) , torch.Size([1,2])
         log_prob = dist.log_prob(action).sum(-1).unsqueeze(-1)
@@ -229,7 +232,9 @@ class PPOAgent(BaseAgent):
     def step(self):
         config = self.config
         storage = Storage(config.rollout_length)
-        states = self.states
+
+        """ collect a trajectory D, trajectory length = config.rollout_length """
+        states = self.states # initial state
         for _ in range(config.rollout_length):
             prediction = self.network(states)
             next_states, rewards, terminals, info = self.task.step(to_np(prediction['a']))
@@ -253,12 +258,15 @@ class PPOAgent(BaseAgent):
         storage.placeholder()
 
         """ Calculate the advantage function for each state """
-        advantages = tensor(np.zeros((config.num_workers, 1)))
+        advantages = tensor(np.zeros((config.num_workers, 1))) # create a placeholder for advantage estimates
         returns = prediction['v'].detach()
         for i in reversed(range(config.rollout_length)):
-            returns = storage.r[i] + config.discount * storage.m[i] * returns
-            self.returns.append(returns.item())  # test
+            returns = storage.r[i] + config.discount * storage.m[i] * returns # rewards-to-go
+
+            """ log the returns for plots """
+            self.returns.append(returns.item())
             self.avg_returns.append(sum(self.returns) / len(self.returns))
+
             if not config.use_gae:  # TODO: check out general advantage estimate
                 advantages = returns - storage.v[i].detach()
             else:
@@ -289,7 +297,10 @@ class PPOAgent(BaseAgent):
                                           1.0 + self.config.ppo_ratio_clip) * sampled_advantages # .clamp() is also a special function in pytorch
                 policy_loss = -torch.min(obj, obj_clipped).mean() - config.entropy_weight * prediction['ent'].mean()
 
-                value_loss = 0.5 * (sampled_returns - prediction['v']).pow(2).mean()
+
+                # value_loss = 0.5 * (sampled_returns - prediction['v']).pow(2).mean()
+                value_loss = 1 * (sampled_returns - prediction['v']).pow(2).mean()  # follow the value in the ppo paper
+
 
                 self.opt.zero_grad()
                 (policy_loss + value_loss).backward()
@@ -313,9 +324,9 @@ def ppo_continuous(**kwargs):
     config.use_gae = True
     config.gae_tau = 0.95
     config.gradient_clip = 0.5
-    config.rollout_length = 128 # 2048
+    config.rollout_length = 1024 # 2048
     config.optimization_epochs = 10
-    config.mini_batch_size = 64
+    config.mini_batch_size = 512
     config.ppo_ratio_clip = 0.2
     config.log_interval = 2048
     config.max_steps = 3000 if args.num_steps is None else args.num_steps

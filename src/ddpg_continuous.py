@@ -85,12 +85,15 @@ class DeterministicActorCriticNet(nn.Module, BaseNet):
         self.to(Config.DEVICE)
 
     def forward(self, obs):
+
         phi = self.feature(obs)
         action = self.actor(phi)
         return action
 
     def feature(self, obs):
         obs = tensor(obs)
+        if args.observation == 'pixel':
+            obs = obs.permute(0, 3, 1, 2)
         return self.phi_body(obs)
 
     def actor(self, phi):
@@ -106,7 +109,35 @@ def layer_init(layer, w_scale=1.0):
     nn.init.constant_(layer.bias.data, 0)
     return layer
 
+# for the observation space 'pixel'
+class NatureConvBody(nn.Module):
+    def __init__(self, in_channels=4):
+        super(NatureConvBody, self).__init__()
+        self.feature_dim = 512
+        self.conv1 = layer_init(nn.Conv2d(in_channels, 32, kernel_size=8, stride=4))
+        self.conv2 = layer_init(nn.Conv2d(32, 64, kernel_size=4, stride=2))
+        self.conv3 = layer_init(nn.Conv2d(64, 64, kernel_size=3, stride=1))
+        self.fc4 = layer_init(nn.Linear(28 * 28 * 64, self.feature_dim))
 
+    def forward(self, x):
+        y = F.relu(self.conv1(x))
+        y = F.relu(self.conv2(y))
+        y = F.relu(self.conv3(y))
+        y = y.view(y.size(0), -1)
+        y = F.relu(self.fc4(y))
+        return y
+# class DDPGConvBody(nn.Module):
+#     def __init__(self, in_channels=3):
+#         super(DDPGConvBody, self).__init__()
+#         self.feature_dim = 63 * 63 * 32
+#         self.conv1 = layer_init(nn.Conv2d(in_channels, 32, kernel_size=3, stride=2))
+#         self.conv2 = layer_init(nn.Conv2d(32, 32, kernel_size=3, stride=2))
+#
+#     def forward(self, x):
+#         y = F.elu(self.conv1(x))
+#         y = F.elu(self.conv2(y))
+#         y = y.view(y.size(0), -1)
+#         return y
 
 class FCBody(nn.Module):
     def __init__(self, state_dim, hidden_units=(64, 64), gate=F.relu):
@@ -275,8 +306,11 @@ class DDPGAgent(BaseAgent):
             action += self.random_process.sample()
         action = np.clip(action, self.task.action_space.low, self.task.action_space.high)
         next_state, reward, done, info = self.task.step(action)
+
+        # logging the average cumulative rewards
         self.returns.append(reward.item()) # test
         self.avg_returns.append(sum(self.returns) / len(self.returns))
+
         next_state = self.config.state_normalizer(next_state)
         if info[0]['episodic_return'] is not None:
             self.episodic_returns.append(info[0]['episodic_return'])
@@ -333,14 +367,19 @@ def ddpg_continuous(**kwargs):
     config.max_steps =  3000 if args.num_steps is None else args.num_steps # original: 1e6
     config.eval_interval = int(1e4)
     config.eval_episodes = 20
-
-    config.network_fn = lambda: DeterministicActorCriticNet(
-        config.state_dim, config.action_dim,
-        actor_body=FCBody(config.state_dim, (400, 300), gate=F.relu),
-        critic_body=TwoLayerFCBodyWithAction(
-            config.state_dim, config.action_dim, (400, 300), gate=F.relu),
-        actor_opt_fn=lambda params: torch.optim.Adam(params, lr=1e-4),
-        critic_opt_fn=lambda params: torch.optim.Adam(params, lr=1e-3))
+    if args.observation == 'pixel':
+        config.network_fn = lambda: DeterministicActorCriticNet(
+            config.state_dim, config.action_dim, phi_body=NatureConvBody(in_channels=3),
+            actor_opt_fn=lambda params: torch.optim.Adam(params, lr=1e-4),
+            critic_opt_fn=lambda params: torch.optim.Adam(params, lr=1e-3))
+    else:
+        config.network_fn = lambda: DeterministicActorCriticNet(
+            config.state_dim, config.action_dim,
+            actor_body=FCBody(config.state_dim, (400, 300), gate=F.relu),
+            critic_body=TwoLayerFCBodyWithAction(
+                config.state_dim, config.action_dim, (400, 300), gate=F.relu),
+            actor_opt_fn=lambda params: torch.optim.Adam(params, lr=1e-4),
+            critic_opt_fn=lambda params: torch.optim.Adam(params, lr=1e-3))
 
     config.replay_fn = lambda: Replay(memory_size=int(1e6), batch_size=64)
     config.discount = 0.99

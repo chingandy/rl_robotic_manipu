@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import csv
+import argparse
 
 
 
@@ -47,13 +48,40 @@ def plot_data(file_list, data_type):
 
 
 if __name__ == '__main__':
+    # parser
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-m", "--model", help="specify the model type")
+    args = parser.parse_args()
+    data_type = 'episodic' # 'avg' or 'episodic'
 
-    data_type = 'avg' # 'avg' or 'episodic'
-    # test
-    folder_dir = 'data/ppo_continuous/'
-    # file_list = ['feature-n-detector_l5.csv', 'feature-n-detector_l7.csv', 'feature-n-detector_l11.csv']
-    # file_list = ['feature_l5.csv', 'feature_l7.csv', 'feature_l11.csv']
-    # file_list = ['pixel_l5.csv', 'pixel_l7.csv', 'pixel_l11.csv']
-    file_list = ['feature_avg-returns.csv']
-    file_list = [folder_dir + x for x in file_list]
-    plot_data(file_list, data_type)
+    if args.model == 'ppo_continuous':
+        # ppo continuous
+        folder_dir = 'data/ppo_continuous/'
+        file_list = ['franka-feature.csv']
+        file_list = [folder_dir + x for x in file_list]
+        plot_data(file_list, data_type)
+
+    elif args.model == 'ppo_discrete':
+        # ppo discrete
+        folder_dir = 'data/ppo_discrete/'
+        # file_list = ['feature_l5.csv','feature_l7.csv','feature_l11.csv']
+        file_list = ['pixel_l5.csv','pixel_l7.csv','pixel_l11.csv']
+        file_list = [folder_dir + x for x in file_list]
+        plot_data(file_list, data_type)
+
+
+    elif args.model == 'dqn_discrete':
+        # dqn
+        folder_dir = 'data/dqn_discrete/'
+        file_list = ['feature_l5_q-mean.csv', 'feature_l7_q-mean.csv', 'feature_l11_q-mean.csv']
+        file_list = [folder_dir + x for x in file_list]
+        plot_data(file_list, data_type)
+
+    elif args.model == 'ddpg_continuous':
+        # ddpg
+        folder_dir = 'data/ddpg_continuous/'
+        file_list = ['franka-feature.csv']
+        file_list = [folder_dir + x for x in file_list]
+        plot_data(file_list, data_type)
+    else:
+        print("Model not specified.")

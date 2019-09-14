@@ -10,10 +10,8 @@ from keras.models import Sequential, load_model, Model
 import os
 import parser
 import itertools
+import csv
 # from blob_detector import blob_detector
-
-EPISODES = 1000
-random.seed(1)  # fix the random seed
 
 class DQNAgent:
     #Constructor for the agent (invoked when DQN is first called in main)
@@ -25,7 +23,7 @@ class DQNAgent:
         self.state_size = state_space.shape[0]
         self.action_size = len(action_space)
         self.discount_factor = 0.95
-        self.learning_rate = 6e-6  # 0.005
+        self.learning_rate = 1e-4  # 0.005
         self.epsilon = 0.1 #Fixed
         self.batch_size = 32 #Fixed
         self.memory_size = 500000  # 1000
@@ -139,7 +137,7 @@ class DQNAgent:
             return
 
     #Plots the score per episode as well as the maximum q value per episode, averaged over precollected states.
-    def plot_data(self, episodes, scores, max_q_mean, success_cnt):
+    def plot_data(self, episodes, scores, max_q_mean):
         pylab.figure(0)
         pylab.plot(episodes, max_q_mean, 'b')
         pylab.xlabel("Episodes")
@@ -164,9 +162,8 @@ class BasicWrapper(gym.Wrapper):
     def __init__(self, env, dis_level):
         super().__init__(env)
         self.env = env
-        if dis_level:
-            action_range = np.linspace(-3.0, 3.0, dis_level)
-            self.action_space = list(itertools.product(action_range, action_range))
+        action_range = np.linspace(-3.0, 3.0, dis_level)
+        self.action_space = list(itertools.product(action_range, action_range))
 
 # class DiscretizedActionWrapper(Env):
 #     def __init__(self, env_fns, dis_level):
@@ -182,8 +179,20 @@ def main(args):
 
 
     EPISODES = args.episodes
-    env = gym.make('Reacher-v2')
-    env = BasicWrapper(env, 5)
+    if args.observation == 'feature':
+        env = gym.make('Reacher-v2')
+    elif args.observation == 'feature-n-detector':
+        env = gym.make('Reacher-v102')
+    else:
+        print("Observation space not defined")
+        quit()
+    if args.dis_level is None:
+        print("Discretization level not specified")
+        quit()
+    else:
+        env = BasicWrapper(env, args.dis_level)
+        print("Action space: ")
+        print(env.action_space)
     #Get state and action sizes from the environment
     state_space = env.observation_space
     state_size = env.observation_space.shape[0]
@@ -285,12 +294,43 @@ def main(args):
                         print("Models are saved.")
                         agent.plot_data(episodes, scores,max_q_mean[:e+1], success_cnt)
                         sys.exit()
-    agent.plot_data(episodes, scores, max_q_mean, success_cnt)
+
+
+    # Save max q mean to csv file
+    save_dir = 'data/dqn_discrete/' + args.observation + '_l'+ str(args.dis_level) + '_q-mean.csv'
+    with open(save_dir, mode='a') as log_file:
+        writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        # print("episodic returns: ", agent.episodic_returns)
+        writer.writerow(max_q_mean.flatten())
+
+    # Save max q mean to csv file
+    save_dir = 'data/dqn_discrete/' + args.observation + '_l'+ str(args.dis_level) + '_scores.csv'
+    with open(save_dir, mode='a') as log_file:
+        writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        # print("episodic returns: ", agent.episodic_returns)
+        writer.writerow(scores)
+
+
+    # plot data right after training
+    # agent.plot_data(episodes, scores, max_q_mean, success_cnt)
     # Save the model
     # agent.save_model(path_to_model, path_to_target)
     env.close()
 
 if __name__ == '__main__':
+    """
+    Specify the following:
+    r: random seed
+    e: episodes
+    o: observation space
+    l: discretization level
+
+    """
+
+    # fix the random seed
+    random.seed(parser.args.random_seed)
+    np.random.seed(parser.args.random_seed)
+
     if parser.args.test:
         #TODO: to be filled in
         pass
