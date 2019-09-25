@@ -70,9 +70,22 @@ class DeterministicActorCriticNet(nn.Module, BaseNet):
         if phi_body is None: phi_body = DummyBody(state_dim)
         if actor_body is None: actor_body = DummyBody(phi_body.feature_dim)
         if critic_body is None: critic_body = DummyBody(phi_body.feature_dim)
+        elif args.observation == 'pixel' or args.observation == 'franka-pixel':
+            critic_body = critic_body(phi_body.feature_dim)
+
+        # if args.observation == 'pixel':
+        #     critic_body = TwoLayerFCBodyWithAction(
+        #         phi_body.feature_dim, config.action_dim, (400, 300), gate=F.relu)
+
         self.phi_body = phi_body
         self.actor_body = actor_body
         self.critic_body = critic_body
+        # self.critic_body = critic_body(phi_body.feature_dim, action_dim, (400, 300), gate=F.relu)
+        # print("critic_body: ", critic_body)
+        # print(critic_body.feature_dim)
+        # quit()
+        # TwoLayerFCBodyWithAction(
+        #     phi_body.feature_dim, config.action_dim, (400, 300), gate=F.relu)
         self.fc_action = layer_init(nn.Linear(actor_body.feature_dim, action_dim), 1e-3)
         self.fc_critic = layer_init(nn.Linear(critic_body.feature_dim, 1), 1e-3)
 
@@ -92,7 +105,7 @@ class DeterministicActorCriticNet(nn.Module, BaseNet):
 
     def feature(self, obs):
         obs = tensor(obs)
-        if args.observation == 'pixel':
+        if args.observation == 'pixel' or args.observation == 'franka-pixel':
             obs = obs.permute(0, 3, 1, 2)
         return self.phi_body(obs)
 
@@ -335,6 +348,8 @@ class DDPGAgent(BaseAgent):
 
             phi_next = self.target_network.feature(next_states)
             a_next = self.target_network.actor(phi_next)
+            # print("phi_next: ", phi_next.shape)
+            # print("a_next: ", a_next.shape)
             q_next = self.target_network.critic(phi_next, a_next)
             q_next = config.discount * mask * q_next
             q_next.add_(rewards)
@@ -367,9 +382,10 @@ def ddpg_continuous(**kwargs):
     config.max_steps =  3000 if args.num_steps is None else args.num_steps # original: 1e6
     config.eval_interval = int(1e4)
     config.eval_episodes = 20
-    if args.observation == 'pixel':
+    if args.observation == 'pixel' or args.observation == 'franka-pixel':
         config.network_fn = lambda: DeterministicActorCriticNet(
-            config.state_dim, config.action_dim, phi_body=NatureConvBody(in_channels=3),
+            config.state_dim, config.action_dim, phi_body=NatureConvBody(in_channels=3), critic_body=lambda params :TwoLayerFCBodyWithAction(
+                params, config.action_dim, (400, 300), gate=F.relu),
             actor_opt_fn=lambda params: torch.optim.Adam(params, lr=1e-4),
             critic_opt_fn=lambda params: torch.optim.Adam(params, lr=1e-3))
     else:
@@ -385,24 +401,33 @@ def ddpg_continuous(**kwargs):
     config.discount = 0.99
     config.random_process_fn = lambda: OrnsteinUhlenbeckProcess(
         size=(config.action_dim,), std=LinearSchedule(0.2))
-    config.warm_up = int(1e4)
+    config.warm_up = int(1e4) if not args.test else 1
     config.target_network_mix = 1e-3
     config.video_rendering = args.video_rendering
     agent = DDPGAgent(config)
     run_steps(agent)
 
-    save_dir = 'data/ddpg_continuous/' + args.observation + '.csv'
-    with open(save_dir, mode='a') as log_file:
-        writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        # print("episodic returns: ", agent.episodic_returns)
-        writer.writerow(agent.episodic_returns)
 
-    # Save the return for each step
-    save_dir = 'data/ddpg_continuous/' + args.observation + '_avg-returns.csv'
-    with open(save_dir, mode='a') as log_file:
-        writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        # print("episodic returns: ", agent.episodic_returns)
-        writer.writerow(agent.avg_returns)
+    if args.test:
+        save_dir = 'data/ddpg_continuous_test/' + args.observation + '.csv'
+        with open(save_dir, mode='a') as log_file:
+            writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            # print("episodic returns: ", agent.episodic_returns)
+            writer.writerow(agent.episodic_returns)
+
+    else:
+        save_dir = 'data/ddpg_continuous/' + args.observation + '.csv'
+        with open(save_dir, mode='a') as log_file:
+            writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            # print("episodic returns: ", agent.episodic_returns)
+            writer.writerow(agent.episodic_returns)
+
+        # Save the return for each step
+        save_dir = 'data/ddpg_continuous/' + args.observation + '_avg-returns.csv'
+        with open(save_dir, mode='a') as log_file:
+            writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            # print("episodic returns: ", agent.episodic_returns)
+            writer.writerow(agent.avg_returns)
 
     # plot the episodic returns
     # import pylab
@@ -448,9 +473,12 @@ if __name__ == '__main__':
         ddpg_continuous(game=env)
     elif args.observation == 'franka-feature':
         env = 'FrankaReacher-v0'
-        print("*" * 100)
-        print("Using FrankaReacher Env")
-        print("*" * 100)
+        ddpg_continuous(game=env)
+    elif args.observation == 'franka-detector':
+        env = 'FrankaReacher-v1'
+        ddpg_continuous(game=env)
+    elif args.observation == 'franka-pixel':
+        env = 'FrankaReacher-v2'
         ddpg_continuous(game=env)
     else:
         print("Observation space isn't specified.")

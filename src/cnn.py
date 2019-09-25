@@ -19,12 +19,12 @@ import parser
 # TODO: still could not make the model utilize the memory of gpus
 import  keras.backend.tensorflow_backend as K
 
-config = tf.ConfigProto(allow_soft_placement=True)
+# config = tf.ConfigProto(allow_soft_placement=True)
 #config = tf.ConfigProto(allow_soft_placement=True, device_count={'GPU': 1, 'CPU':4})
 #config.gpu_options.per_process_gpu_memory_fraction = 0.9
-config.gpu_options.allow_growth = True
-sess = tf.Session(config=config)
-K.set_session(sess)
+# config.gpu_options.allow_growth = True
+# sess = tf.Session(config=config)
+# K.set_session(sess)
 
 EPISODES = 1000  # Default of the number of episodes:  1000
 inshape = (256, 256, 3)  # the size of images
@@ -41,7 +41,7 @@ class DQNAgent:
         self.action_space = action_space
         #Get size of state and action
         self.state_size = state_size
-        self.action_size = len(action_space)
+        self.action_size = action_space.n
 
 
 ################################################################################
@@ -226,7 +226,7 @@ def main(args):
     env = gym.make('Reacher-v101') # Reacher-v101 environment is the edited version of Reacher-v0 adapted for CNN
     #Get state and action sizes from the environment
     state_size = env.observation_space.shape[0]
-    action_size = len(env.action_space)
+    action_size = env.action_space.n
     print("#"*80)
     print("State_size: ", state_size)
     print("action_size: ", action_size)

@@ -51,6 +51,23 @@ class DummyBody(nn.Module):
     def forward(self, x):
         return x
 
+class NatureConvBody(nn.Module):
+    def __init__(self, in_channels=4):
+        super(NatureConvBody, self).__init__()
+        self.feature_dim = 512
+        self.conv1 = layer_init(nn.Conv2d(in_channels, 32, kernel_size=8, stride=4))
+        self.conv2 = layer_init(nn.Conv2d(32, 64, kernel_size=4, stride=2))
+        self.conv3 = layer_init(nn.Conv2d(64, 64, kernel_size=3, stride=1))
+        self.fc4 = layer_init(nn.Linear(28 * 28 * 64, self.feature_dim))
+
+    def forward(self, x):
+        y = F.relu(self.conv1(x))
+        y = F.relu(self.conv2(y))
+        y = F.relu(self.conv3(y))
+        y = y.view(y.size(0), -1)
+        y = F.relu(self.fc4(y))
+        return y
+
 class BaseNet:
     def __init__(self):
         pass
@@ -90,6 +107,8 @@ class GaussianActorCriticNet(nn.Module, BaseNet):
 
     def forward(self, obs, action=None):
         obs = tensor(obs)
+        if args.observation == 'pixel':
+            obs = obs.permute(0, 3, 1, 2)
         phi = self.phi_body(obs)
         phi_a = self.actor_body(phi)
         phi_v = self.critic_body(phi)
@@ -235,9 +254,14 @@ class PPOAgent(BaseAgent):
 
         """ collect a trajectory D, trajectory length = config.rollout_length """
         states = self.states # initial state
-        for _ in range(config.rollout_length):
+        for i in range(config.rollout_length):
             prediction = self.network(states)
             next_states, rewards, terminals, info = self.task.step(to_np(prediction['a']))
+            if terminals and i < config.rollout_length - 1:
+                print("#" * 100)
+                print("Current step: ", i)
+                print("when terminal is ", terminals)
+
             if info[0]['episodic_return'] is not None:
                 self.episodic_returns.append(info[0]['episodic_return'])
             # save each
@@ -315,40 +339,54 @@ def ppo_continuous(**kwargs):
 
     config.task_fn = lambda: Task(config.game, config.video_rendering)
     config.eval_env = config.task_fn()
-
-    config.network_fn = lambda: GaussianActorCriticNet(
-        config.state_dim, config.action_dim, actor_body=FCBody(config.state_dim, gate=torch.tanh),
-        critic_body=FCBody(config.state_dim, gate=torch.tanh))
-    config.optimizer_fn = lambda params: torch.optim.Adam(params, 3e-4, eps=1e-5)
+    if args.observation == 'pixel':
+        config.network_fn = lambda: GaussianActorCriticNet(
+            config.state_dim, config.action_dim, phi_body=NatureConvBody(in_channels=3)
+        )
+    else:
+        config.network_fn = lambda: GaussianActorCriticNet(
+            config.state_dim, config.action_dim, actor_body=FCBody(config.state_dim, gate=torch.tanh),
+            critic_body=FCBody(config.state_dim, gate=torch.tanh))
+    config.learning_rate =  3e-4 if args.learning_rate is None else args.learning_rate
+    config.optimizer_fn = lambda params: torch.optim.Adam(params, config.learning_rate, eps=1e-5)
+    # config.optimizer_fn = lambda params: torch.optim.Adam(params, 3e-4, eps=1e-5)
     config.discount = 0.99
     config.use_gae = True
     config.gae_tau = 0.95
     config.gradient_clip = 0.5
-    config.rollout_length = 1024 # 2048
+    config.rollout_length = 128 if args.rollout_length is None else args.rollout_length # 2048
     config.optimization_epochs = 10
-    config.mini_batch_size = 512
+    config.mini_batch_size = 64
     config.ppo_ratio_clip = 0.2
-    config.log_interval = 2048
+    # config.log_interval = 2048
     config.max_steps = 3000 if args.num_steps is None else args.num_steps
     config.state_normalizer = MeanStdNormalizer()
     config.video_rendering = args.video_rendering# set to False if no need to render videos
-    config.save_interval = 10000
 
     agent = PPOAgent(config)
     run_steps(agent)
-    # Save the episodic return to csv file
-    save_dir = 'data/ppo_continuous/' + args.observation + '.csv'
-    with open(save_dir, mode='a') as log_file:
-        writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        # print("episodic returns: ", agent.episodic_returns)
-        writer.writerow(agent.episodic_returns)
 
-    # Save the return for each step
-    save_dir = 'data/ppo_continuous/' + args.observation + '_avg-returns.csv'
-    with open(save_dir, mode='a') as log_file:
-        writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        # print("episodic returns: ", agent.episodic_returns)
-        writer.writerow(agent.avg_returns)
+    if args.test:
+        # Save the episodic return to csv file
+        save_dir = 'data/ppo_continuous_test/' + args.observation + '.csv'
+        with open(save_dir, mode='a') as log_file:
+            writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            # print("episodic returns: ", agent.episodic_returns)
+            writer.writerow(agent.episodic_returns)
+    else:
+        # Save the episodic return to csv file
+        save_dir = 'data/ppo_continuous/' + args.observation + '_' + str(config.rollout_length)  + '.csv'
+        with open(save_dir, mode='a') as log_file:
+            writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            # print("episodic returns: ", agent.episodic_returns)
+            writer.writerow(agent.episodic_returns)
+
+        # Save the return for each step
+        # save_dir = 'data/ppo_continuous/' + args.observation + '_avg-returns.csv'
+        # with open(save_dir, mode='a') as log_file:
+        #     writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        #     # print("episodic returns: ", agent.episodic_returns)
+        #     writer.writerow(agent.avg_returns)
 
 
 
@@ -363,7 +401,10 @@ if __name__ == '__main__':
     g: gpu
     s: step (optional)
     v: render videos (default: False)
-
+    t: if you are just testing another setting, this flag make sure the data
+       won't be corrupted
+    lr: learning rate
+    len: rollout length
     """
     mkdir('log')
     mkdir('tf_log')
@@ -387,6 +428,12 @@ if __name__ == '__main__':
         ppo_continuous(game=env)
     elif args.observation == 'franka-feature':
         env = 'FrankaReacher-v0'
+        print("*" * 100)
+        print("Using FrankaReacher Env")
+        print("*" * 100)
+        ppo_continuous(game=env)
+    elif args.observation == 'franka-detector':
+        env = 'FrankaReacher-v1'
         print("*" * 100)
         print("Using FrankaReacher Env")
         print("*" * 100)

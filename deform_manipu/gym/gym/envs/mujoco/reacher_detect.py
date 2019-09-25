@@ -8,6 +8,7 @@ import itertools
 
 class ReacherEnvDetect(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
+        self.count = 0
         self.rewards = deque(maxlen = 3)
         self.lazy = deque(maxlen = 3)
         utils.EzPickle.__init__(self) # some constructor
@@ -22,15 +23,85 @@ class ReacherEnvDetect(mujoco_env.MujocoEnv, utils.EzPickle):
 
 
     def step(self, a):
-        vec = self._get_obs()[-3:]
-        # vec = self.get_body_com("fingertip")-self.get_body_com("target")
-        reward_dist = - np.linalg.norm(vec)
-        reward_ctrl = - np.square(a).sum()
-        reward = reward_dist + reward_ctrl
-        self.do_simulation(a, self.frame_skip)
-        ob = self._get_obs()
-        done = False
-        return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
+        flag = 0  # 0: original, 1: simple reward, 2: intermidiate rewards
+
+        if flag == 0:
+            """ reward function 0 """
+            self.count += 1
+            vec = self._get_obs()[-3:]
+            # vec = self.get_body_com("fingertip")-self.get_body_com("target")
+            done = False
+            # print("Distance:", np.linalg.norm(vec), "  when vec: ", vec)
+            if np.linalg.norm(vec) <= 0.0001 and self.count > 2:
+                done = True
+            reward_dist = - np.linalg.norm(vec)
+            reward_ctrl = - np.square(a).sum()
+            reward = reward_dist + reward_ctrl
+            self.do_simulation(a, self.frame_skip)
+            ob = self._get_obs()
+            return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
+        elif flag == 1:
+            """ reward function 1 """
+            # previous_vec = self.get_body_com("fingertip")-self.get_body_com("target")
+            previous_vec = self._get_obs()[-3:]
+            prev_dis = np.linalg.norm(previous_vec)
+            self.do_simulation(a, self.frame_skip)
+            ob = self._get_obs()
+            vec = obs[-3:]
+            # vec = self.get_body_com("fingertip")-self.get_body_com("target")
+            dis = np.linalg.norm(vec)
+            delta_dis = dis - prev_dis
+            gamma = 0.25
+            done = False
+
+            if delta_dis > 0:
+                reward = -1
+            elif dis < 0.01:
+                reward = 100
+                done = True
+                self.rewards.append(reward)
+                return ob, reward, done,  dict(rewards=self.rewards)
+            elif delta_dis < 0:
+                reward = 1
+            else:
+                reward = 0
+            self.rewards.append(reward)
+
+            if len(self.rewards) < 3:
+                pass
+            elif sum(self.rewards) < -1:
+                done = True
+            else:
+                done = False
+            return ob, reward, done, dict(rewards=self.rewards)
+        elif flag == 2:
+            self.do_simulation(a, self.frame_skip)
+            ob = self._get_obs()
+            # vec = self.get_body_com("fingertip")-self.get_body_com("target")
+            vec = obs[-3:]
+            dis = np.linalg.norm(vec)
+            gamma = 0.25
+            done = False
+            if dis < 0.001:
+                reward = 10 + np.exp(-gamma * dis)
+                done = True
+                self.rewards.append(reward)
+                return ob, reward, done, dict(rewards=self.rewards)
+            else:
+                reward = np.exp(-gamma * dis)
+                self.rewards.append(reward)
+
+            return ob, reward, done, dict(rewards=self.rewards)
+
+        # vec = self._get_obs()[-3:]
+        # # vec = self.get_body_com("fingertip")-self.get_body_com("target")
+        # reward_dist = - np.linalg.norm(vec)
+        # reward_ctrl = - np.square(a).sum()
+        # reward = reward_dist + reward_ctrl
+        # self.do_simulation(a, self.frame_skip)
+        # ob = self._get_obs()
+        # done = False
+        # return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
 
 
     def viewer_setup(self):

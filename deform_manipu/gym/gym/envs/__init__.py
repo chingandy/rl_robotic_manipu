@@ -29,7 +29,20 @@ from gym.envs.registration import registry, register, make, spec
 register(
     id='FrankaReacher-v0',
     entry_point='gym.envs.mujoco:FrankaReacherEnv',
-    max_episode_steps=1000,
+    max_episode_steps=128,
+    reward_threshold=25.0,
+
+)
+register(
+    id='FrankaReacher-v1',
+    entry_point='gym.envs.mujoco:FrankaReacherEnvDetect',
+    max_episode_steps=128,
+    reward_threshold=25.0,
+)
+register(
+    id='FrankaReacher-v2',
+    entry_point='gym.envs.mujoco:FrankaReacherEnvPixel',
+    max_episode_steps=128,
     reward_threshold=25.0,
 )
 

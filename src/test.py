@@ -1,10 +1,31 @@
-import os
-path_1 = 'chingandywu'
-path_2 = 'master-thesis/code'
+import csv
+import numpy as np
+file_dir = 'data/ppo_continuous/feature_128.csv'
+i = 0
+data = []
+with open(file_dir) as csv_file:
+    csv_reader = csv.reader(csv_file, delimiter=',')
+    for row in csv_reader:
+        row = [float(x) for x in row]
+        data.append(row)
 
-print(os.path.join(path_1, path_2))
+print(len(data[0]))
+
+save_dir = 'data/ppo_continuous/feature_128_real.csv'
+with open(save_dir, mode='a') as log_file:
+    writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    # print("episodic returns: ", agent.episodic_returns)
+    writer.writerow(data[0])
 
 
+
+# import os
+# path_1 = 'chingandywu'
+# path_2 = 'master-thesis/code'
+#
+# print(os.path.join(path_1, path_2))
+#
+#
 
 # import torch
 # x = torch.tensor([0.1, -0.3, 0.5, -.4])
@@ -32,12 +53,12 @@ print(os.path.join(path_1, path_2))
 
 
 
-value = 1.512
-print(np.subtract.outer(array, value))
-print(np.abs(np.subtract.outer(array, value)))
-
-indices = np.abs(np.subtract.outer(array, value)).argmin(0)
-print(indices)
+# value = 1.512
+# print(np.subtract.outer(array, value))
+# print(np.abs(np.subtract.outer(array, value)))
+#
+# indices = np.abs(np.subtract.outer(array, value)).argmin(0)
+# print(indices)
 
 
 

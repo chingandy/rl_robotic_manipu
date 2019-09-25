@@ -69,3 +69,10 @@ class ImageNormalizer(RescaleNormalizer):
 class SignNormalizer(BaseNormalizer):
     def __call__(self, x):
         return np.sign(x)
+
+if __name__ == '__main__':
+    # test
+    x = torch.tensor([[1,2], [3,4]])
+    print(x)
+    y = RescaleNormalizer(coef=2.0)
+    print(y(x))

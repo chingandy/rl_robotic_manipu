@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 class ReacherEnvPixel(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
+        self.count = 0
         self.rewards = deque(maxlen = 3)
         self.lazy = deque(maxlen = 3)
         utils.EzPickle.__init__(self) # some constructor
@@ -19,15 +20,71 @@ class ReacherEnvPixel(mujoco_env.MujocoEnv, utils.EzPickle):
         # self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range] + [[y, 0] for y in add_range] + [[0, y] for y in add_range]
 
     def step(self, a):
-        vec = self.get_body_com("fingertip")-self.get_body_com("target")
-        reward_dist = - np.linalg.norm(vec)
-        reward_ctrl = - np.square(a).sum()
-        reward = reward_dist + reward_ctrl
-        self.do_simulation(a, self.frame_skip)
-        ob = self._get_obs()
-        done = False
-        return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
+        flag = 0  # 0: original, 1: simple reward, 2: intermidiate rewards
 
+        if flag == 0:
+            """ reward function 0 """
+            self.count += 1
+            vec = self.get_body_com("fingertip")-self.get_body_com("target")
+            done = False
+            # print("Distance:", np.linalg.norm(vec), "  when vec: ", vec)
+            if np.linalg.norm(vec) <= 0.0001 and self.count > 2:
+                done = True
+            reward_dist = - np.linalg.norm(vec)
+            reward_ctrl = - np.square(a).sum()
+            reward = reward_dist + reward_ctrl
+            self.do_simulation(a, self.frame_skip)
+            ob = self._get_obs()
+            return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
+        elif flag == 1:
+            """ reward function 1 """
+            previous_vec = self.get_body_com("fingertip")-self.get_body_com("target")
+            prev_dis = np.linalg.norm(previous_vec)
+            self.do_simulation(a, self.frame_skip)
+            ob = self._get_obs()
+            vec = self.get_body_com("fingertip")-self.get_body_com("target")
+            dis = np.linalg.norm(vec)
+            delta_dis = dis - prev_dis
+            gamma = 0.25
+            done = False
+
+            if delta_dis > 0:
+                reward = -1
+            elif dis < 0.01:
+                reward = 100
+                done = True
+                self.rewards.append(reward)
+                return ob, reward, done,  dict(rewards=self.rewards)
+            elif delta_dis < 0:
+                reward = 1
+            else:
+                reward = 0
+            self.rewards.append(reward)
+
+            if len(self.rewards) < 3:
+                pass
+            elif sum(self.rewards) < -1:
+                done = True
+            else:
+                done = False
+            return ob, reward, done, dict(rewards=self.rewards)
+        elif flag == 2:
+            self.do_simulation(a, self.frame_skip)
+            ob = self._get_obs()
+            vec = self.get_body_com("fingertip")-self.get_body_com("target")
+            dis = np.linalg.norm(vec)
+            gamma = 0.25
+            done = False
+            if dis < 0.001:
+                reward = 10 + np.exp(-gamma * dis)
+                done = True
+                self.rewards.append(reward)
+                return ob, reward, done, dict(rewards=self.rewards)
+            else:
+                reward = np.exp(-gamma * dis)
+                self.rewards.append(reward)
+
+            return ob, reward, done, dict(rewards=self.rewards)
 
         #previous_vec = self.get_body_com("fingertip")-self.get_body_com("target")
         #prev_dis = np.linalg.norm(previous_vec)
@@ -122,39 +179,39 @@ class ReacherEnvPixel(mujoco_env.MujocoEnv, utils.EzPickle):
         #reward_ctrl = - np.square(a).sum()
         #reward_vel = - beta * self.sim.data.qvel.flat[0] # add penalty to the velocity
         #reward = reward_dist + reward_ctrl + reward_vel
-        reward = - dis
-        if dis < 0.1: # original setting: 0.008 => too strict
-             print("Near the target, distance: ", dis)
-             #plt.axis('off')
-             #plt.imshow(ob)
-             #plt.savefig('show_near.png',transparent = True, bbox_inches = 'tight', pad_inches = 0)
-             #print("##########################Image saved.###########################")
-        if  dis <= 0.08:
-            print("#"*100)
-            print("Target touched!")
-            print("#"*100)
-            reward += 100
-            touch = True
-            done = True
-            return ob, reward, done, touch
-
-
-        if abs(prev_dis - dis) / prev_dis <= 0.02:
-            print("Might fall into a lazy behaviour!")
-
-        self.lazy.append(lazy_dis)
-        if len(self.lazy) < 3:
-            pass
-        else:
-            l = True
-            for x in self.lazy:
-                if x >  0.1:
-                    l = False
-                    break
-            if l:
-                print("LAZY")
-                done = True
-                reward -= 1000
+        # reward = - dis
+        # if dis < 0.1: # original setting: 0.008 => too strict
+        #      print("Near the target, distance: ", dis)
+        #      #plt.axis('off')
+        #      #plt.imshow(ob)
+        #      #plt.savefig('show_near.png',transparent = True, bbox_inches = 'tight', pad_inches = 0)
+        #      #print("##########################Image saved.###########################")
+        # if  dis <= 0.08:
+        #     print("#"*100)
+        #     print("Target touched!")
+        #     print("#"*100)
+        #     reward += 100
+        #     touch = True
+        #     done = True
+        #     return ob, reward, done, touch
+        #
+        #
+        # if abs(prev_dis - dis) / prev_dis <= 0.02:
+        #     print("Might fall into a lazy behaviour!")
+        #
+        # self.lazy.append(lazy_dis)
+        # if len(self.lazy) < 3:
+        #     pass
+        # else:
+        #     l = True
+        #     for x in self.lazy:
+        #         if x >  0.1:
+        #             l = False
+        #             break
+        #     if l:
+        #         print("LAZY")
+        #         done = True
+        #         reward -= 1000
 
         """ Reward function 4 """
 
@@ -172,7 +229,7 @@ class ReacherEnvPixel(mujoco_env.MujocoEnv, utils.EzPickle):
         # if done:
         #     print("In def step.......", done)
         # info = "this is from my step" + str(done)
-        return ob, reward, done, touch
+        # return ob, reward, done, touch
         ######################################
         # return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
 

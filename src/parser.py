@@ -9,9 +9,13 @@ parser.add_argument("-e", "--episodes", type=int,  help="specify the number of e
 
 parser.add_argument("-s", "--num_steps", type=float,  help="specify the maximum number of steps")
 
+parser.add_argument("-lr", "--learning_rate", type=float,  help="specify the learning rate.")
+
 parser.add_argument("-l", "--dis_level", type=int,  help="specify the discretization level")
 
 parser.add_argument("-r", "--random_seed", type=int,  help="specify the random seed")
+
+parser.add_argument("-len", "--rollout_length", type=int,  help="specify the rollout length")
 
 parser.add_argument("-t", "--test", action="store_true", help="test the result and render videos")
 

@@ -11,6 +11,8 @@ import os
 import parser
 import itertools
 import csv
+from gym import wrappers
+from time import time
 # from blob_detector import blob_detector
 
 class DQNAgent:
@@ -22,13 +24,13 @@ class DQNAgent:
         #Get size of state and action
         self.state_size = state_space.shape[0]
         self.action_size = len(action_space)
-        self.discount_factor = 0.95
+        self.discount_factor = 0.99 # 0.95
         self.learning_rate = 1e-4  # 0.005
         self.epsilon = 0.1 #Fixed
         self.batch_size = 32 #Fixed
         self.memory_size = 500000  # 1000
-        self.train_start = 1000 #Fixed
-        self.target_update_frequency = 1
+        self.train_start = 32 #Fixed
+        self.target_update_frequency = 10 # 1
 
 
         #Number of test states for Q value plots
@@ -49,11 +51,9 @@ class DQNAgent:
         main_input = Input(shape=(11,))
 
         # The first branch operates on the main input
-        x = Dense(16, activation='relu', kernel_initializer='he_uniform')(main_input)
+        x = Dense(64, activation='relu', kernel_initializer='he_uniform')(main_input)
+        x = Dense(32, activation='relu', kernel_initializer='he_uniform')(x)
         x = Dense(16, activation='relu', kernel_initializer='he_uniform')(x)
-        x = Dense(self.action_size, activation='linear', kernel_initializer='he_uniform')(x)
-
-
         output = Dense(self.action_size, activation='linear', kernel_initializer='he_uniform')(x)
         model = Model(inputs=main_input, output=output)
         opt = Adam(lr=self.learning_rate, decay=1e-6)
@@ -162,23 +162,18 @@ class BasicWrapper(gym.Wrapper):
     def __init__(self, env, dis_level):
         super().__init__(env)
         self.env = env
-        action_range = np.linspace(-3.0, 3.0, dis_level)
-        self.action_space = list(itertools.product(action_range, action_range))
-
-# class DiscretizedActionWrapper(Env):
-#     def __init__(self, env_fns, dis_level):
-#         # self.envs = [fn() for fn in env_fns]
-#         # env = self.envs[0]
-#         Env.__init__(self, len(env_fns), env.observation_space, env.action_space) # adding the key 'episodic_return' because of VecEnv from the module "baselins"
-#         self.actions = None
-#         if dis_level:
-#             action_range = np.linspace(-3.0, 3.0, dis_level)
-#             self.action_space = list(itertools.product(action_range, action_range))
+        if dis_level == -1:
+            self.action_space = [[0.1, 0], [-0.1, 0], [0, -0.1], [0, 0.1]]
+        else:
+            action_range = np.linspace(-3.0, 3.0, dis_level)
+            self.action_space = list(itertools.product(action_range, action_range))
 
 def main(args):
 
 
     EPISODES = args.episodes
+
+    # observation
     if args.observation == 'feature':
         env = gym.make('Reacher-v2')
     elif args.observation == 'feature-n-detector':
@@ -186,6 +181,8 @@ def main(args):
     else:
         print("Observation space not defined")
         quit()
+
+    # discretization level of action space
     if args.dis_level is None:
         print("Discretization level not specified")
         quit()
@@ -193,21 +190,23 @@ def main(args):
         env = BasicWrapper(env, args.dis_level)
         print("Action space: ")
         print(env.action_space)
+
+    # video recording
+    if args.video_rendering:
+        env = wrappers.Monitor(env, './videos/' + str(time()) + '/')
+
     #Get state and action sizes from the environment
     state_space = env.observation_space
     state_size = env.observation_space.shape[0]
     action_space = env.action_space
     action_size = len(env.action_space)
-    # action_size = env.action_space.n
-    # action_size = env.action_space.shape[0]
-
 
     #Create agent, see the DQNAgent __init__ method for details
     agent = DQNAgent(state_space, action_space)
 
     #load the pre-trained model
-    # path_to_model = 'model_mlp_dtcr.h5'
-    # path_to_target = 'target_model_mlp_dtcr.h5'
+    path_to_model = './models/model_mlp_dtcr.h5'
+    path_to_target = './models/target_model_mlp_dtcr.h5'
     # print("#" * 50)
     # if os.path.isfile(path_to_model) and os.path.isfile(path_to_target):
     #     print("Loading the pre-trained model......")
@@ -270,7 +269,7 @@ def main(args):
             agent.append_sample(state, action, reward, next_state, done)
             #Training step
             agent.train_model()
-            score += reward #Store episodic reward
+            score = reward +  0.99 * score#Store episodic reward
             state = next_state #Propagate state
 
             if done:
@@ -281,40 +280,54 @@ def main(args):
                 scores.append(score)
                 episodes.append(e)
 
-                print("episode:", e, "  score:", score," q_value:", max_q_mean[e],"  memory length:",
-                      len(agent.memory))
+                print("episode:", e, "  score:", score," q_value:", max_q_mean[e],"  memory length:", len(agent.memory))
 
                 # if the mean of scores of last 100 episodes is bigger than 195
                 # stop training
-                if agent.check_solve:
-                    last_hundred_q_mean = np.mean(max_q_mean[-min(100, len(max_q_mean)):])
-                    if abs(last_hundred_q_mean - max_q_mean[e]) / last_hundred_q_mean  <= 0.01:
-                        print("solved after", e-100, "episodes")
-                        agent.save_model(path_to_model, path_to_target)
-                        print("Models are saved.")
-                        agent.plot_data(episodes, scores,max_q_mean[:e+1], success_cnt)
-                        sys.exit()
+                # if agent.check_solve:
+                #     last_hundred_q_mean = np.mean(max_q_mean[-min(100, len(max_q_mean)):])
+                #     if abs(last_hundred_q_mean - max_q_mean[e]) / last_hundred_q_mean  <= 0.01:
+                #         print("solved after", e-100, "episodes")
+                #         agent.save_model(path_to_model, path_to_target)
+                #         print("Models are saved.")
+                #         agent.plot_data(episodes, scores,max_q_mean[:e+1], success_cnt)
+                #         sys.exit()
 
+    if args.test:
 
+        # Save max q mean to csv file
+        save_dir = 'data/dqn_test/' + args.observation + '_l'+ str(args.dis_level) + '_q-mean.csv'
+        with open(save_dir, mode='a') as log_file:
+            writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            # print("episodic returns: ", agent.episodic_returns)
+            writer.writerow(max_q_mean.flatten())
+
+        #Save scores to csv file
+        save_dir = 'data/dqn_test/' + args.observation + '_l'+ str(args.dis_level) + '_scores.csv'
+        with open(save_dir, mode='a') as log_file:
+            writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            # print("episodic returns: ", agent.episodic_returns)
+            writer.writerow(scores)
+    else:
     # Save max q mean to csv file
-    save_dir = 'data/dqn_discrete/' + args.observation + '_l'+ str(args.dis_level) + '_q-mean.csv'
-    with open(save_dir, mode='a') as log_file:
-        writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        # print("episodic returns: ", agent.episodic_returns)
-        writer.writerow(max_q_mean.flatten())
+        save_dir = 'data/dqn_discrete/' + args.observation + '_l'+ str(args.dis_level) + '_q-mean.csv'
+        with open(save_dir, mode='a') as log_file:
+            writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            # print("episodic returns: ", agent.episodic_returns)
+            writer.writerow(max_q_mean.flatten())
 
-    # Save max q mean to csv file
-    save_dir = 'data/dqn_discrete/' + args.observation + '_l'+ str(args.dis_level) + '_scores.csv'
-    with open(save_dir, mode='a') as log_file:
-        writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        # print("episodic returns: ", agent.episodic_returns)
-        writer.writerow(scores)
+        #Save scores to csv file
+        save_dir = 'data/dqn_discrete/' + args.observation + '_l'+ str(args.dis_level) + '_scores.csv'
+        with open(save_dir, mode='a') as log_file:
+            writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            # print("episodic returns: ", agent.episodic_returns)
+            writer.writerow(scores)
 
 
     # plot data right after training
     # agent.plot_data(episodes, scores, max_q_mean, success_cnt)
     # Save the model
-    # agent.save_model(path_to_model, path_to_target)
+    agent.save_model(path_to_model, path_to_target)
     env.close()
 
 if __name__ == '__main__':
@@ -324,17 +337,11 @@ if __name__ == '__main__':
     e: episodes
     o: observation space
     l: discretization level
-
+    t: test mode (optional, logging to the test folder)
     """
 
     # fix the random seed
     random.seed(parser.args.random_seed)
     np.random.seed(parser.args.random_seed)
 
-    if parser.args.test:
-        #TODO: to be filled in
-        pass
-        # reward = test(parser.args)
-        # print("Reward: ", reward)
-    else:
-        main(parser.args)
+    main(parser.args)

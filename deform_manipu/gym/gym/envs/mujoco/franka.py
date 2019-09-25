@@ -1,8 +1,9 @@
 import os
-
+import sys
 import numpy as np
 from gym import utils, spaces
 from gym.envs.mujoco import mujoco_env
+from collections import deque
 
 
 def body_index(model, body_name):
@@ -38,6 +39,8 @@ def body_frame(env, body_name):
 
 class FrankaReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
+        self.count = 0
+        self.rewards = deque(maxlen = 10)
         self.high = np.array([40, 35, 30, 20, 15, 10, 10,10,10])
         self.low = -self.high
         self.wt = 0.0
@@ -48,7 +51,8 @@ class FrankaReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
         # Manually define this to let a be in [-1, 1]^d
-        self.action_space = spaces.Box(low=-np.ones(9) * 2, high=np.ones(9) * 2, dtype=np.float32)
+        self.action_space = spaces.Box(low=-np.ones(7) * 2, high=np.ones(7) * 2, dtype=np.float32)
+        # self.action_space = spaces.Box(low=-np.ones(9) * 2, high=np.ones(9) * 2, dtype=np.float32)
         self.init_params()
 
     def init_params(self, wt=0.9, x=0.0, y=0.0, z=0.2):
@@ -64,38 +68,106 @@ class FrankaReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
 
     def step(self, a):
-        a_real = a * self.high / 2
-        self.do_simulation(a_real, self.frame_skip)
-        reward = self._reward(a_real)
+        """ Reward function 1 """
+        self.count += 1
+        vec = self.get_body_com("panda_leftfinger")-self.get_body_com("goal")
         done = False
+        # print("Distance:", np.linalg.norm(vec), "  when vec: ", vec)
+        if np.linalg.norm(vec) <= 0.0001 and self.count > 2:
+            done = True
+        reward_dist = - np.linalg.norm(vec)
+        reward_ctrl = - np.square(a).sum()
+        reward = reward_dist + reward_ctrl
+        self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
-        return ob, reward, done, {}
+        return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
 
-    def _reward(self, a):
-        eef = self.get_body_com('panda_leftfinger')
-        #print(eef)
-        goal = self.get_body_com('goal')
-        goal_distance = np.linalg.norm(eef - goal)
-        # This is the norm of the joint angles
-        # The ** 4 is to create a "flat" region around [0, 0, 0, ...]
-        q_norm = np.linalg.norm(self.sim.data.qpos.flat[:7]) ** 4 / 100.0
+        """ Reward function 2 """
+        # self.do_simulation(a, self.frame_skip)
+        # ob = self._get_obs()
+        # vec = self.get_body_com("panda_leftfinger")-self.get_body_com("goal")
+        # dis = np.linalg.norm(vec)
+        # gamma = 0.25
+        # done = False
+        # if dis < 0.001:
+        #     reward = 10
+        #     done = True
+        #     self.rewards.append(reward)
+        #     return ob, reward, done, dict(rewards=self.rewards)
+        # else:
+        #     reward = np.exp(-gamma * dis)
+        #     self.rewards.append(reward)
+        #
+        # return ob, reward, done, dict(rewards=self.rewards)
 
-        # TODO in the future
-        # f_desired = np.eye(3)
-        # f_current = body_frame(self, 'gripper_r_base')
 
-        reward = -(
-            self.wt * goal_distance * 2.0 +  # Scalars here is to make this part of the reward approx. [0, 1]
-            self.we * np.linalg.norm(a) / 40 +
-            q_norm
-        )
-        return reward
+    # def _reward(self, a):
+    #
+    #     vec = self.get_body_com("panda_leftfinger")-self.get_body_com("goal")
+    #     reward_dist = - np.linalg.norm(vec)
+    #     reward_ctrl = - np.square(a).sum()
+    #     reward = reward_dist + reward_ctrl
+    #     self.do_simulation(a, self.frame_skip)
+    #     ob = self._get_obs()
+    #     done = False
+    #     return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
+
+
+        """ original """
+        # eef = self.get_body_com('panda_leftfinger')
+        # goal = self.get_body_com('goal')
+        # goal_distance = np.linalg.norm(eef - goal)
+        # # This is the norm of the joint angles
+        # # The ** 4 is to create a "flat" region around [0, 0, 0, ...]
+        # q_norm = np.linalg.norm(self.sim.data.qpos.flat[:7]) ** 4 / 100.0
+        #
+        # # TODO in the future
+        # # f_desired = np.eye(3)
+        # # f_current = body_frame(self, 'gripper_r_base')
+        #
+        # reward = -(
+        #     self.wt * goal_distance * 2.0 +  # Scalars here is to make this part of the reward approx. [0, 1]
+        #     self.we * np.linalg.norm(a) / 40 +
+        #     q_norm
+        # )
+        # return reward
 
     def _get_obs(self):
+        # qpos =  self.sim.data.qpos
+        # qpos_flat = self.sim.data.qpos.flat
+        #
+        # qvel =  self.sim.data.qvel
+        # qvel_flat =  self.sim.data.qvel.flat
+        # print("qpos: ", type(qpos), qpos.shape)
+        #
+        # print("qvel: ", type(qvel), qvel.shape)
+        theta = self.sim.data.qpos.flat[:7]
+        # obs = np.concatenate([
+        #     np.cos(theta),
+        #     np.sin(theta),
+        #     self.sim.data.qpos[10:],
+        #     self.sim.data.qvel[:10],
+        #     self.get_body_com('panda_leftfinger') - self.get_body_com('goal')
+        # ]
+        # )
+        # print(obs.shape)
+        # print(obs)
         return np.concatenate([
-            self.sim.data.qpos.flat[:7],
-            np.clip(self.sim.data.qvel.flat[:7], -10, 10)
-        ])
+            np.cos(theta),
+            np.sin(theta),
+            self.sim.data.qpos[7:],
+            self.sim.data.qvel[:9],
+            self.get_body_com('panda_leftfinger') - self.get_body_com('goal')
+        ]
+        )
+        # print("panda_leftfinger: ",self.get_body_com('panda_leftfinger'))
+        # print("panda_rightfinger: ",self.get_body_com('panda_rightfinger'))
+
+        """ original """
+        # return np.concatenate([
+        #     self.sim.data.qpos.flat[:7],
+        #     np.clip(self.sim.data.qvel.flat[:7], -10, 10)
+        # ])
 
     def reset_model(self):
         #pos_low  = np.array([-1.0,-0.3,-0.4,-0.4,-0.3,-0.3,-0.3])
@@ -110,6 +182,9 @@ class FrankaReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self._get_obs()
 
     def viewer_setup(self):
+        self.viewer.cam.lookat[0] = 0
+        self.viewer.cam.lookat[1] = 0
+        self.viewer.cam.lookat[2] = 0.3
         self.viewer.cam.distance = 2.0
         self.viewer.cam.elevation = -30
-        self.viewer.cam.azimuth = 180
+        self.viewer.cam.azimuth = 135

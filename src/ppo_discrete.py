@@ -115,23 +115,24 @@ class CategoricalActorCriticNet(nn.Module, BaseNet):
         logits = self.fc_action(phi_a)
         v = self.fc_critic(phi_v)
 
-        if self.ordinal_distribution:
-            """ Ordinal Distribution Network """
-            sigmoid = torch.nn.Sigmoid()
-            logits =  torch.squeeze(logits, 0)
-            s_i = sigmoid(logits)
-            one_minus_s = tensor(1) - s_i
-            _part_1 = torch.log_(s_i)
-            _part_2 = torch.log_(one_minus_s)
-            ordinal_logits = [torch.sum(_part_1[:i + 1]).item() + torch.sum(_part_2[i+1:]).item() for i in range(len(s_i))]
-            # ordinal_logits = [torch.sum(torch.log_(s_i[:i+1])).item() + torch.sum(torch.log_(one_minus_s[i+1:])).item() for i in range(len(s_i))]
-
-            ordinal_logits = tensor(ordinal_logits)
-            ordinal_logits = torch.unsqueeze(ordinal_logits, dim=0)
-
-            dist = torch.distributions.Categorical(logits=ordinal_logits)
-        else:
-            dist = torch.distributions.Categorical(logits=logits)
+        # if self.ordinal_distribution:
+        #     """ Ordinal Distribution Network """
+        #     sigmoid = torch.nn.Sigmoid()
+        #     logits =  torch.squeeze(logits, 0)
+        #     s_i = sigmoid(logits)
+        #     one_minus_s = tensor(1) - s_i
+        #     _part_1 = torch.log_(s_i)
+        #     _part_2 = torch.log_(one_minus_s)
+        #     ordinal_logits = [torch.sum(_part_1[:i + 1]).item() + torch.sum(_part_2[i+1:]).item() for i in range(len(s_i))]
+        #     # ordinal_logits = [torch.sum(torch.log_(s_i[:i+1])).item() + torch.sum(torch.log_(one_minus_s[i+1:])).item() for i in range(len(s_i))]
+        #
+        #     ordinal_logits = tensor(ordinal_logits)
+        #     ordinal_logits = torch.unsqueeze(ordinal_logits, dim=0)
+        #
+        #     dist = torch.distributions.Categorical(logits=ordinal_logits)
+        # else:
+        #     dist = torch.distributions.Categorical(logits=logits)
+        dist = torch.distributions.Categorical(logits=logits)
         if action is None:
             action = dist.sample()  # action: the ith action in the action space
         log_prob = dist.log_prob(action).unsqueeze(-1)
@@ -293,6 +294,8 @@ class PPOAgent(BaseAgent):
 
             arr_rewards.append(rewards)
 
+            epi_return = self.eval_episodes()
+
             if info[0]['episodic_return'] is not None:
                 self.episodic_returns.append(info[0]['episodic_return'])
             self.record_online_return(info)
@@ -415,7 +418,7 @@ def ppo_feature(**kwargs):
     config.gae_tau = 0.95
     config.entropy_weight = 0.01
     config.gradient_clip = 5
-    config.rollout_length = 128
+    config.rollout_length = 128 if args.rollout_length is None else args.rollout_length
     config.optimization_epochs = 10
     config.mini_batch_size = 32 * 5
     config.ppo_ratio_clip = 0.2
@@ -461,6 +464,7 @@ if __name__ == '__main__':
     l: discretization level
     g: gpu
     s: step (optional)
+    len: rollout length
 
     """
     mkdir('log')
@@ -483,6 +487,12 @@ if __name__ == '__main__':
 
     elif args.observation == 'feature':
         env = 'Reacher-v2'
+        ppo_feature(game=env)
+    elif args.observation == 'franka-feature':
+        env = "FrankaReacher-v0"
+        ppo_feature(game=env)
+    elif args.observation == 'franka-detector':
+        env = "FrankaReacher-v1"
         ppo_feature(game=env)
     else:
         print("Observation space isn't specified.")
