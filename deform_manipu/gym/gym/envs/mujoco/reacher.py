@@ -6,6 +6,7 @@ from collections import deque
 class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
         self.count = 0
+        self.high = np.array([3.0, 3.0])
         self.rewards = deque(maxlen = 3) # self-added
         utils.EzPickle.__init__(self)
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
@@ -13,8 +14,9 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
 
     def step(self, a):
+        a = a * self.high / 2.0
         flag = 0  # 0: original, 1: simple reward, 2: intermidiate rewards
-
+        # print("in step action: ", a)
         if flag == 0:
             """ reward function 0 """
             self.count += 1
@@ -97,6 +99,7 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def _get_obs(self):
         theta = self.sim.data.qpos.flat[:2]
+        
         return np.concatenate([
             np.cos(theta),
             np.sin(theta),

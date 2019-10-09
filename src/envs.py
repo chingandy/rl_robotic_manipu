@@ -122,6 +122,23 @@ class FrameStack(FrameStack_):
         return LazyFrames(list(self.frames))
 
 
+
+
+# class ActionWrapper(gym.ActionWrapper):
+#     def __init__(self, env, dis_level):
+#         super().__init__(env)
+#         if dis_level == -1: # test mode, to test panda with only 2 dof
+#             action_range = np.linspace(-2.0, 2.0, 11)
+#             self.action_space = list(itertools.product(action_range, repeat=2))
+#         elif dis_level:
+#             # print("Action space: ", env.action_space.shape[0], type(env.action_space))
+#             action_range = np.linspace(-2.0, 2.0, dis_level)
+#             self.action_space = list(itertools.product(action_range, repeat=env.action_space.shape[0]))
+#
+#     def action(self, act):
+#         # modify act
+#         return act
+
 # The original one in baselines is really bad
 class DummyVecEnv(VecEnv):
     def __init__(self, env_fns, dis_level):
@@ -129,9 +146,14 @@ class DummyVecEnv(VecEnv):
         env = self.envs[0]
         VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space) # adding the key 'episodic_return' because of VecEnv from the module "baselins"
         self.actions = None
-        if dis_level:
-            action_range = np.linspace(-3.0, 3.0, dis_level)
-            self.action_space = list(itertools.product(action_range, action_range))
+        if dis_level == -1: # test mode, to test panda with only 2 dof
+            action_range = np.linspace(-2.0, 2.0, 11)
+            self.action_space = list(itertools.product(action_range, repeat=2))
+        elif dis_level:
+            # print("Action space: ", env.action_space.shape[0], type(env.action_space))
+            action_range = np.linspace(-2.0, 2.0, dis_level)
+            self.action_space = list(itertools.product(action_range, repeat=env.action_space.shape[0]))
+
         # if dis_level is not None:
         #     print("Discretization level: ", dis_level)
         #     action_range = np.linspace(-3.0, 3.0, dis_level)
@@ -141,9 +163,11 @@ class DummyVecEnv(VecEnv):
         self.actions = actions
 
     def step_wait(self):
+        # print("In step_wait")
         data = []
         for i in range(self.num_envs):
-            obs, rew, done, info = self.envs[i].step(self.actions[i])
+            # print("self.actions[i]  ",self.actions[i])
+            obs, rew, done, info = self.envs[i].step(self.actions)
             if done:
                 obs = self.envs[i].reset()
             data.append([obs, rew, done, info])

@@ -122,15 +122,22 @@ def layer_init(layer, w_scale=1.0):
     nn.init.constant_(layer.bias.data, 0)
     return layer
 
-# for the observation space 'pixel'
+
 class NatureConvBody(nn.Module):
     def __init__(self, in_channels=4):
         super(NatureConvBody, self).__init__()
-        self.feature_dim = 512
-        self.conv1 = layer_init(nn.Conv2d(in_channels, 32, kernel_size=8, stride=4))
-        self.conv2 = layer_init(nn.Conv2d(32, 64, kernel_size=4, stride=2))
-        self.conv3 = layer_init(nn.Conv2d(64, 64, kernel_size=3, stride=1))
-        self.fc4 = layer_init(nn.Linear(28 * 28 * 64, self.feature_dim))
+        if args.observation == 'pixel':
+            self.feature_dim = 512
+            self.conv1 = layer_init(nn.Conv2d(in_channels, 32, kernel_size=7, stride=3))
+            self.conv2 = layer_init(nn.Conv2d(32, 64, kernel_size=3, stride=2))
+            self.conv3 = layer_init(nn.Conv2d(64, 64, kernel_size=3, stride=1))
+            self.fc4 = layer_init(nn.Linear(39 * 39 * 64, self.feature_dim))
+        elif args.observation == 'franka-pixel':
+            self.feature_dim = 512
+            self.conv1 = layer_init(nn.Conv2d(in_channels, 32, kernel_size=7, stride=3))
+            self.conv2 = layer_init(nn.Conv2d(32, 64, kernel_size=3, stride=2))
+            self.conv3 = layer_init(nn.Conv2d(64, 64, kernel_size=3, stride=1))
+            self.fc4 = layer_init(nn.Linear(39 * 18 * 64, self.feature_dim))
 
     def forward(self, x):
         y = F.relu(self.conv1(x))
@@ -288,6 +295,7 @@ class DDPGAgent(BaseAgent):
         self.total_steps = 0
         self.state = None
         self.episodic_returns = []
+        self.episodic_returns_test = []
         self.returns = []
         self.avg_returns = []
 
@@ -327,6 +335,14 @@ class DDPGAgent(BaseAgent):
         next_state = self.config.state_normalizer(next_state)
         if info[0]['episodic_return'] is not None:
             self.episodic_returns.append(info[0]['episodic_return'])
+
+            """ uncomment this section if you want to log the episodic
+                returns with the test environment.
+            """
+            # return_test = self.eval_episodes()
+            # self.episodic_returns_test.append(return_test['episodic_return_test'])
+            #
+
         self.record_online_return(info)
         reward = self.config.reward_normalizer(reward)
 
@@ -380,7 +396,7 @@ def ddpg_continuous(**kwargs):
     config.task_fn = lambda: Task(config.game, config.video_rendering)
     config.eval_env = config.task_fn()
     config.max_steps =  3000 if args.num_steps is None else args.num_steps # original: 1e6
-    config.eval_interval = int(1e4)
+    config.eval_interval = 0  # set an interger, say int(1e4, if you want to evaluate the result
     config.eval_episodes = 20
     if args.observation == 'pixel' or args.observation == 'franka-pixel':
         config.network_fn = lambda: DeterministicActorCriticNet(
@@ -401,7 +417,7 @@ def ddpg_continuous(**kwargs):
     config.discount = 0.99
     config.random_process_fn = lambda: OrnsteinUhlenbeckProcess(
         size=(config.action_dim,), std=LinearSchedule(0.2))
-    config.warm_up = int(1e4) if not args.test else 1
+    config.warm_up = int(1e4)
     config.target_network_mix = 1e-3
     config.video_rendering = args.video_rendering
     agent = DDPGAgent(config)
@@ -415,12 +431,19 @@ def ddpg_continuous(**kwargs):
             # print("episodic returns: ", agent.episodic_returns)
             writer.writerow(agent.episodic_returns)
 
+        # Save the return for each step
+        save_dir = 'data/ddpg_continuous_test/' + args.observation + '_avg-returns.csv'
+        with open(save_dir, mode='a') as log_file:
+            writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            # print("episodic returns: ", agent.episodic_returns)
+            writer.writerow(agent.avg_returns)
+
     else:
         save_dir = 'data/ddpg_continuous/' + args.observation + '.csv'
         with open(save_dir, mode='a') as log_file:
             writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            # print("episodic returns: ", agent.episodic_returns)
             writer.writerow(agent.episodic_returns)
+            # writer.writerow(agent.episodic_returns_test)
 
         # Save the return for each step
         save_dir = 'data/ddpg_continuous/' + args.observation + '_avg-returns.csv'

@@ -5,3 +5,5 @@ from .logger import *
 from .plot import Plotter
 from .schedule import *
 from .torch_utils import *
+from .base_agent import *
+from .replay import *

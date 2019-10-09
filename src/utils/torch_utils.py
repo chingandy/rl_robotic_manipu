@@ -12,7 +12,9 @@ import os
 def select_device(gpu_id):
     # if torch.cuda.is_available() and gpu_id >= 0:
     if gpu_id >= 0:
-        Config.DEVICE = torch.device('cuda:%d' % (gpu_id))
+        Config.DEVICE = torch.device('cuda:0,1')
+        # Config.DEVICE = torch.device('cuda:%d' % (gpu_id))
+
     else:
         Config.DEVICE = torch.device('cpu')
 

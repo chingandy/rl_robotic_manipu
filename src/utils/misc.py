@@ -26,7 +26,10 @@ def run_steps(agent):
             t0 = time.time()
 
         if config.eval_interval and not agent.total_steps % config.eval_interval:
-            agent.eval_episodes()
+            data = agent.eval_episodes()
+            episodic_return_test = data['episodic_return_test']
+            agent.episodic_returns.append(episodic_return_test)
+            # print("return test:  ", episodic_return_test)
 
         # reach the max_steps and terminate the process
         if config.max_steps and agent.total_steps >= config.max_steps:

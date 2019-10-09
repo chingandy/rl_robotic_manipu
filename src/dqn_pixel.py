@@ -18,19 +18,19 @@ import csv
 from gym import wrappers
 from time import time
 import  keras.backend.tensorflow_backend as K
-from keras.utils.training_utils import multi_gpu_model
+# from keras.utils.training_utils import multi_gpu_model
 # config = tf.ConfigProto(log_device_placement=True)
 # config.gpu_options.per_process_gpu_memory_fraction = 0.9
 # config.gpu_options.allow_growth = True
 # sess = tf.Session(config=config)
 # K.set_session(sess)
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '6,7'
-config = tf.ConfigProto( device_count = {'GPU': 2 , 'CPU': 6} )
+os.environ['CUDA_VISIBLE_DEVICES'] = '7'
+config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 20} )
 sess = tf.Session(config=config)
 keras.backend.set_session(sess)
 
-inshape = (256, 256, 3)
+
 
 
 
@@ -60,9 +60,9 @@ class DQNAgent:
 
         #Create main network and target network (using build_model defined below)
         self.model = self.build_model()
-        self.model = multi_gpu_model(self.model, 2)
+        # self.model = multi_gpu_model(self.model, 2)
         self.target_model = self.build_model()
-        self.target_model = multi_gpu_model(self.target_model, 2)
+        # self.target_model = multi_gpu_model(self.target_model, 2)
 
         #Initialize target network
         self.update_target_model()
@@ -76,9 +76,9 @@ class DQNAgent:
         # The first branch operates on the main input
         x = Conv2D(64, kernel_size=5, strides=(2,2), activation='relu')(main_input)
         x = MaxPooling2D(pool_size=(2,2))(x)
-        x = Conv2D(32, kernel_size=5, strides=(2,2), activation='relu')(x)
+        x = Conv2D(32, kernel_size=3, strides=(2,2), activation='relu')(x)
         x = MaxPooling2D(pool_size=(2,2))(x)
-        x = Conv2D(16, kernel_size=5, strides=(2,2), activation='relu')(x)
+        x = Conv2D(16, kernel_size=3, strides=(2,2), activation='relu')(x)
         x = MaxPooling2D(pool_size=(2,2))(x)
         x = Flatten()(x)
 
@@ -187,8 +187,8 @@ class BasicWrapper(gym.Wrapper):
         if dis_level == -1:
             self.action_space = [[0.1, 0], [-0.1, 0], [0, -0.1], [0, 0.1]]
         else:
-            action_range = np.linspace(-3.0, 3.0, dis_level)
-            self.action_space = list(itertools.product(action_range, action_range))
+            action_range = np.linspace(-2.0, 2.0, dis_level)
+            self.action_space = list(itertools.product(action_range, repeat=self.env.action_space.shape[0]))
 
 def main(args):
 
@@ -196,6 +196,8 @@ def main(args):
     EPISODES = args.episodes
     if args.observation == 'pixel':
         env = gym.make('Reacher-v101')
+    elif args.observation == 'franka-pixel':
+        env = gym.make('FrankaReacher-v2')
     else:
         print("Observation not specified")
         quit()
@@ -207,8 +209,7 @@ def main(args):
         quit()
     else:
         env = BasicWrapper(env, args.dis_level)
-        print("Action space: ")
-        print(env.action_space)
+
 
     # video recording
     if args.video_rendering:
@@ -354,6 +355,11 @@ if __name__ == '__main__':
     # fix the random seed
     random.seed(args.random_seed)
     np.random.seed(args.random_seed)
+
+    if args.observation == 'pixel':
+        inshape = (128, 128, 3)
+    else:
+        inshape = (256, 128, 3)
 
     main(args)
     # # fix the random seed

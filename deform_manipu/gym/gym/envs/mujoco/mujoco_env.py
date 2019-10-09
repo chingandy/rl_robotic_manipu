@@ -117,6 +117,11 @@ class MujocoEnv(gym.Env):
         elif mode == 'human':
             self._get_viewer(mode).render()
 
+    def multi_render(self, mode='rgb_array', width=256, height=256):   # self-added function
+        img_topdown = self.sim.render(mode='offscreen', width=width, height=height, camera_name='camera_topdown')
+        img_side = self.sim.render(mode='offscreen', width=width, height=height, camera_name='camera_side')
+        return img_topdown, img_side
+
     def close(self):
         if self.viewer is not None:
             # self.viewer.finish()

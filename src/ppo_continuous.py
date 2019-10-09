@@ -54,11 +54,18 @@ class DummyBody(nn.Module):
 class NatureConvBody(nn.Module):
     def __init__(self, in_channels=4):
         super(NatureConvBody, self).__init__()
-        self.feature_dim = 512
-        self.conv1 = layer_init(nn.Conv2d(in_channels, 32, kernel_size=8, stride=4))
-        self.conv2 = layer_init(nn.Conv2d(32, 64, kernel_size=4, stride=2))
-        self.conv3 = layer_init(nn.Conv2d(64, 64, kernel_size=3, stride=1))
-        self.fc4 = layer_init(nn.Linear(28 * 28 * 64, self.feature_dim))
+        if args.observation == 'pixel':
+            self.feature_dim = 512
+            self.conv1 = layer_init(nn.Conv2d(in_channels, 32, kernel_size=7, stride=3))
+            self.conv2 = layer_init(nn.Conv2d(32, 64, kernel_size=3, stride=2))
+            self.conv3 = layer_init(nn.Conv2d(64, 64, kernel_size=3, stride=1))
+            self.fc4 = layer_init(nn.Linear(39 * 39 * 64, self.feature_dim))
+        elif args.observation == 'franka-pixel':
+            self.feature_dim = 512
+            self.conv1 = layer_init(nn.Conv2d(in_channels, 32, kernel_size=7, stride=3))
+            self.conv2 = layer_init(nn.Conv2d(32, 64, kernel_size=3, stride=2))
+            self.conv3 = layer_init(nn.Conv2d(64, 64, kernel_size=3, stride=1))
+            self.fc4 = layer_init(nn.Linear(39 * 18 * 64, self.feature_dim))
 
     def forward(self, x):
         y = F.relu(self.conv1(x))
@@ -107,7 +114,7 @@ class GaussianActorCriticNet(nn.Module, BaseNet):
 
     def forward(self, obs, action=None):
         obs = tensor(obs)
-        if args.observation == 'pixel':
+        if args.observation == 'pixel' or args.observation == 'franka-pixel':
             obs = obs.permute(0, 3, 1, 2)
         phi = self.phi_body(obs)
         phi_a = self.actor_body(phi)
@@ -339,7 +346,7 @@ def ppo_continuous(**kwargs):
 
     config.task_fn = lambda: Task(config.game, config.video_rendering)
     config.eval_env = config.task_fn()
-    if args.observation == 'pixel':
+    if args.observation == 'pixel' or args.observation == 'franka-pixel':
         config.network_fn = lambda: GaussianActorCriticNet(
             config.state_dim, config.action_dim, phi_body=NatureConvBody(in_channels=3)
         )
@@ -356,7 +363,7 @@ def ppo_continuous(**kwargs):
     config.gradient_clip = 0.5
     config.rollout_length = 128 if args.rollout_length is None else args.rollout_length # 2048
     config.optimization_epochs = 10
-    config.mini_batch_size = 64
+    config.mini_batch_size = 64   # 64
     config.ppo_ratio_clip = 0.2
     # config.log_interval = 2048
     config.max_steps = 3000 if args.num_steps is None else args.num_steps
@@ -375,18 +382,18 @@ def ppo_continuous(**kwargs):
             writer.writerow(agent.episodic_returns)
     else:
         # Save the episodic return to csv file
-        save_dir = 'data/ppo_continuous/' + args.observation + '_' + str(config.rollout_length)  + '.csv'
+        save_dir = 'data/ppo_continuous/' + args.observation + '_len' + str(config.rollout_length)  + '.csv'
         with open(save_dir, mode='a') as log_file:
             writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             # print("episodic returns: ", agent.episodic_returns)
             writer.writerow(agent.episodic_returns)
 
         # Save the return for each step
-        # save_dir = 'data/ppo_continuous/' + args.observation + '_avg-returns.csv'
-        # with open(save_dir, mode='a') as log_file:
-        #     writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        #     # print("episodic returns: ", agent.episodic_returns)
-        #     writer.writerow(agent.avg_returns)
+        save_dir = 'data/ppo_continuous/' + args.observation + '_len' + str(config.rollout_length)  + '_avg-returns.csv'
+        with open(save_dir, mode='a') as log_file:
+            writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            # print("episodic returns: ", agent.episodic_returns)
+            writer.writerow(agent.avg_returns)
 
 
 
@@ -418,6 +425,7 @@ if __name__ == '__main__':
     if args.observation == 'pixel':
         env = "Reacher-v101"
         ppo_continuous(game=env)
+
     elif args.observation == 'feature-n-detector':
         # print("argument parser works")
         env = 'Reacher-v102'
@@ -426,20 +434,30 @@ if __name__ == '__main__':
     elif args.observation == 'feature':
         env = 'Reacher-v2'
         ppo_continuous(game=env)
+
     elif args.observation == 'franka-feature':
         env = 'FrankaReacher-v0'
         print("*" * 100)
         print("Using FrankaReacher Env")
         print("*" * 100)
         ppo_continuous(game=env)
+
     elif args.observation == 'franka-detector':
         env = 'FrankaReacher-v1'
         print("*" * 100)
         print("Using FrankaReacher Env")
         print("*" * 100)
         ppo_continuous(game=env)
+
+    elif args.observation == 'franka-pixel':
+        env = 'FrankaReacher-v2'
+        ppo_continuous(game=env)
+    elif args.observation == 'single-franka':
+        env = 'SingleFranka-v0'
+        ppo_continuous(game=env)
     else:
         print("Observation space isn't specified.")
+
     # mkdir('log')
     # mkdir('tf_log')
     # set_one_thread()

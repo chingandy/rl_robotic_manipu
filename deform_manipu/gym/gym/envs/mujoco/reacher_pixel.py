@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 class ReacherEnvPixel(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
         self.count = 0
+        self.high = np.array([3.0, 3.0])
         self.rewards = deque(maxlen = 3)
         self.lazy = deque(maxlen = 3)
         utils.EzPickle.__init__(self) # some constructor
@@ -20,8 +21,9 @@ class ReacherEnvPixel(mujoco_env.MujocoEnv, utils.EzPickle):
         # self.action_space = [[x, 0] for x in action_range] + [[0, x] for x in action_range] + [[y, 0] for y in add_range] + [[0, y] for y in add_range]
 
     def step(self, a):
+        a = a * self.high / 2.0
         flag = 0  # 0: original, 1: simple reward, 2: intermidiate rewards
-
+        # print("in step action: ", a)
         if flag == 0:
             """ reward function 0 """
             self.count += 1
@@ -273,7 +275,7 @@ class ReacherEnvPixel(mujoco_env.MujocoEnv, utils.EzPickle):
         # print("fingertip: ", self.get_body_com("fingertip"))
         # print("target:", self.get_body_com("target"))
         # print(out)
-        image = self.render(mode='rgb_array', width=256, height=256 ) # added by Andy, type: numpy.ndarray
+        image = self.render(mode='rgb_array', width=128, height=128 ) # added by Andy, type: numpy.ndarray
         # return np.concatenate([
         #     np.cos(theta),
         #     np.sin(theta),

@@ -1,21 +1,21 @@
 import csv
 import numpy as np
-file_dir = 'data/ppo_continuous/feature_128.csv'
-i = 0
-data = []
-with open(file_dir) as csv_file:
-    csv_reader = csv.reader(csv_file, delimiter=',')
-    for row in csv_reader:
-        row = [float(x) for x in row]
-        data.append(row)
+# file_dir = 'data/ppo_continuous/feature_128.csv'
+# i = 0
+# data = []
+# with open(file_dir) as csv_file:
+#     csv_reader = csv.reader(csv_file, delimiter=',')
+#     for row in csv_reader:
+#         row = [float(x) for x in row]
+#         data.append(row)
 
-print(len(data[0]))
+# print(len(data[0]))
 
-save_dir = 'data/ppo_continuous/feature_128_real.csv'
+save_dir = 'data/test.csv'
 with open(save_dir, mode='a') as log_file:
     writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     # print("episodic returns: ", agent.episodic_returns)
-    writer.writerow(data[0])
+    writer.writerow([2,3,4,5])
 
 
 

@@ -4,6 +4,8 @@ import pylab
 import random
 import numpy as np
 from collections import deque
+import tensorflow as tf
+import keras
 from keras.layers import Dense, Input, concatenate
 from keras.optimizers import Adam, SGD, RMSprop
 from keras.models import Sequential, load_model, Model
@@ -13,7 +15,12 @@ import itertools
 import csv
 from gym import wrappers
 from time import time
+
 # from blob_detector import blob_detector
+os.environ['CUDA_VISIBLE_DEVICES'] = '5'
+config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 20} )
+sess = tf.Session(config=config)
+keras.backend.set_session(sess)
 
 class DQNAgent:
     #Constructor for the agent (invoked when DQN is first called in main)
@@ -30,7 +37,7 @@ class DQNAgent:
         self.batch_size = 32 #Fixed
         self.memory_size = 500000  # 1000
         self.train_start = 32 #Fixed
-        self.target_update_frequency = 10 # 1
+        self.target_update_frequency = 1 # 1
 
 
         #Number of test states for Q value plots
@@ -48,7 +55,7 @@ class DQNAgent:
 
     def build_model(self):
 
-        main_input = Input(shape=(11,))
+        main_input = Input(shape=(self.state_size,))
 
         # The first branch operates on the main input
         x = Dense(64, activation='relu', kernel_initializer='he_uniform')(main_input)
@@ -165,8 +172,9 @@ class BasicWrapper(gym.Wrapper):
         if dis_level == -1:
             self.action_space = [[0.1, 0], [-0.1, 0], [0, -0.1], [0, 0.1]]
         else:
-            action_range = np.linspace(-3.0, 3.0, dis_level)
-            self.action_space = list(itertools.product(action_range, action_range))
+            action_range = np.linspace(-2.0, 2.0, dis_level)
+            # print("self.action-space: ", self.action_space.shape[0])
+            self.action_space = list(itertools.product(action_range, repeat=self.action_space.shape[0]))
 
 def main(args):
 
@@ -178,6 +186,13 @@ def main(args):
         env = gym.make('Reacher-v2')
     elif args.observation == 'feature-n-detector':
         env = gym.make('Reacher-v102')
+
+    elif args.observation == 'franka-feature':
+        env = gym.make("FrankaReacher-v0")
+
+    elif args.observation == 'franka-detector':
+        env = gym.make("FrankaReacher-v1")
+
     else:
         print("Observation space not defined")
         quit()
@@ -296,11 +311,11 @@ def main(args):
     if args.test:
 
         # Save max q mean to csv file
-        save_dir = 'data/dqn_test/' + args.observation + '_l'+ str(args.dis_level) + '_q-mean.csv'
-        with open(save_dir, mode='a') as log_file:
-            writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            # print("episodic returns: ", agent.episodic_returns)
-            writer.writerow(max_q_mean.flatten())
+        # save_dir = 'data/dqn_test/' + args.observation + '_l'+ str(args.dis_level) + '_q-mean.csv'
+        # with open(save_dir, mode='a') as log_file:
+        #     writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        #     # print("episodic returns: ", agent.episodic_returns)
+        #     writer.writerow(max_q_mean.flatten())
 
         #Save scores to csv file
         save_dir = 'data/dqn_test/' + args.observation + '_l'+ str(args.dis_level) + '_scores.csv'
