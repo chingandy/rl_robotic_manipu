@@ -35,20 +35,20 @@ register(
 register(
     id='FrankaReacher-v0',
     entry_point='gym.envs.mujoco:FrankaReacherEnv',
-    max_episode_steps=2048,
+    max_episode_steps=2048,  # 2048
     reward_threshold=25.0,
 
 )
 register(
     id='FrankaReacher-v1',
     entry_point='gym.envs.mujoco:FrankaReacherEnvDetect',
-    max_episode_steps=2048,
+    max_episode_steps=2048,  # 2048
     reward_threshold=25.0,
 )
 register(
     id='FrankaReacher-v2',
     entry_point='gym.envs.mujoco:FrankaReacherEnvPixel',
-    max_episode_steps=2048,
+    max_episode_steps=2048, # 2048
     reward_threshold=25.0,
 )
 

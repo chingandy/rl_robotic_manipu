@@ -360,8 +360,10 @@ if __name__ == '__main__':
         inshape = (128, 128, 3)
     else:
         inshape = (256, 128, 3)
-
+    start_time = time()
+    print("Start time: ", start_time)
     main(args)
+    print("Elapsed time:  ", time() - start_time)
     # # fix the random seed
     # random.seed(parser.args.random_seed)
     # np.random.seed(parser.args.random_seed)

@@ -137,6 +137,7 @@ class ReacherEnvDetect(mujoco_env.MujocoEnv, utils.EzPickle):
         # Detect blobs
         keypoints = detector.detect(image)
         if keypoints:
+
             target_pos = keypoints[0].pt
             # print("Detector: ", target_pos)
 

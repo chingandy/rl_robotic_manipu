@@ -16,6 +16,7 @@ import csv
 from gym import wrappers
 from time import time
 
+
 # from blob_detector import blob_detector
 os.environ['CUDA_VISIBLE_DEVICES'] = '5'
 config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 20} )
@@ -262,7 +263,10 @@ def main(args):
         done = False
         state = np.expand_dims(state, axis=0)
         #Compute Q values for plotting
+
         tmp = agent.model.predict(test_states)  # tmp.shape = num of test states * num of actions
+
+
         max_q[e][:] = np.max(tmp, axis=1)
         max_q_mean[e] = np.mean(max_q[e][:])
 
@@ -359,4 +363,7 @@ if __name__ == '__main__':
     random.seed(parser.args.random_seed)
     np.random.seed(parser.args.random_seed)
 
+    start_time = time()
+    print("Start time:  ", start_time)
     main(parser.args)
+    print("Elapsed time: ", time() - start_time)

@@ -1,5 +1,28 @@
-import csv
-import numpy as np
+import torch
+import time
+
+start_time = time.time()
+x = torch.randn(1)
+
+if torch.cuda.is_available():
+    device = torch.device("cuda:4")          # a CUDA device object
+    print("Device: ", device)
+    y = torch.ones_like(x, device=device)  # directly create a tensor on GPU
+    x = x.to(device)                       # or just use strings ``.to("cuda")``
+    z = x + y
+    print(z)
+    print(z.to("cpu", torch.double))
+end_time = time.time()
+print("Elapsed time = ", end_time - start_time)
+
+
+
+
+
+
+
+# import csv
+# import numpy as np
 # file_dir = 'data/ppo_continuous/feature_128.csv'
 # i = 0
 # data = []
@@ -11,11 +34,11 @@ import numpy as np
 
 # print(len(data[0]))
 
-save_dir = 'data/test.csv'
-with open(save_dir, mode='a') as log_file:
-    writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-    # print("episodic returns: ", agent.episodic_returns)
-    writer.writerow([2,3,4,5])
+# save_dir = 'data/test.csv'
+# with open(save_dir, mode='a') as log_file:
+#     writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+#     # print("episodic returns: ", agent.episodic_returns)
+#     writer.writerow([2,3,4,5])
 
 
 

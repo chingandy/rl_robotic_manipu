@@ -59,7 +59,7 @@ def plot_data(file_list, data_type, action_type, head=None):
     fig.tight_layout()
     file_name = file_list[0].split('.')[-2].split('/')[-1]
     print("Save file at: " + "./pic/" + file_name + "_" + args.model +  ".png")
-    if action_type != 'continuous combined':
+    if action_type != 'continuous-combined':
         plt.savefig("./pic/" + file_name + "_" + args.model +  ".png")
     else:
         plt.savefig("./pic/" + file_name + "_combined.png")
@@ -85,10 +85,13 @@ if __name__ == '__main__':
 
     folder_dir = 'data/'
 
-    file_list = ['franka-feature_l5_scores.csv']
-
+    # file_list = ['franka-feature_len2048_l4.csv', 'franka-feature_len2048_l5.csv', 'franka-feature_len2048_l6.csv']
+    # file_list = ['feature-n-detector_len128_l5.csv', 'feature-n-detector_len128_l7.csv', 'feature-n-detector_len128_l11.csv']
+    # file_list = ['pixel_l5_scores.csv', 'pixel_l7_scores.csv', 'pixel_l11_scores.csv']
+    # file_list = ['old-reacher/' + x for x in file_list]
+    file_list = ['franka-pixel.csv']
     file_list = [os.path.join(folder_dir, args.model, file) for file in file_list]
-    plot_data(file_list, data_type, action_type)
+    plot_data(file_list, data_type, action_type, head=50)
 
 
     #

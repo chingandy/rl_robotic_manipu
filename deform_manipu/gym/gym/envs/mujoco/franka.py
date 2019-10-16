@@ -130,7 +130,7 @@ class FrankaReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             self.get_body_com('panda_link7') - self.get_body_com('goal')
         ]
         )
-        
+
 
         return np.concatenate([
             np.cos(theta),
