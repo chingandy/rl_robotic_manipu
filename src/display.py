@@ -5,7 +5,7 @@ import csv
 
 
 def calculate_mean(data_list):
-    return np.mean(data_list[-10:])
+    return np.mean(data_list[-50:])
 
 def load_data(file_dir):
     data = []
@@ -26,8 +26,8 @@ if __name__ == '__main__':
     """
 
     # show the mean of 100 elements of each row
-    folder_dir = 'data/ppo_discrete/'
-    file_list = ['franka-detector_len2048_l4.csv', 'franka-detector_len2048_l5.csv', 'franka-detector_len2048_l6.csv']
+    folder_dir = 'data/ppo_continuous/'
+    file_list = ['franka-feature.csv', 'franka-detector.csv']
     # file_list = ['franka-detector_l5.csv', 'franka-detector_l7.csv', 'franka-detector_l11.csv']
     # file_list = ['feature-n-detector_len128_l5.csv', 'feature-n-detector_len128_l7.csv', 'feature-n-detector_len128_l11.csv']
     file_list = [folder_dir + x for x in file_list]

@@ -26,17 +26,18 @@ class ReacherEnvPixel(mujoco_env.MujocoEnv, utils.EzPickle):
         # print("in step action: ", a)
         if flag == 0:
             """ reward function 0 """
-            self.count += 1
+            # self.count += 1
             vec = self.get_body_com("fingertip")-self.get_body_com("target")
-            done = False
             # print("Distance:", np.linalg.norm(vec), "  when vec: ", vec)
-            if np.linalg.norm(vec) <= 0.0001 and self.count > 2:
+            # if np.linalg.norm(vec) <= 0.0001 and self.count > 2:
+            if np.linalg.norm(vec) <= 0.0001:
                 done = True
             reward_dist = - np.linalg.norm(vec)
             reward_ctrl = - np.square(a).sum()
             reward = reward_dist + reward_ctrl
             self.do_simulation(a, self.frame_skip)
             ob = self._get_obs()
+            done = False
             return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
         elif flag == 1:
             """ reward function 1 """

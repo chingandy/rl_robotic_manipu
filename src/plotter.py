@@ -52,7 +52,7 @@ def plot_data(file_list, data_type, action_type, head=None):
         plt.legend(labels=['bins = 5', 'bins = 7', 'bins = 11'], loc='lower right', markerscale=12, fontsize=15)
     elif action_type == 'continuous':
         plt.legend(labels=['continuous action'], loc='lower right', markerscale=12, fontsize=15)
-    elif action_type == 'continuous combined':
+    elif action_type == 'continuous-combined':
         plt.legend(labels=['feature', 'feature + detection', 'pixels'], loc='lower right', markerscale=12, fontsize=15)
 
     # Show the plot on the screen
@@ -89,9 +89,9 @@ if __name__ == '__main__':
     # file_list = ['feature-n-detector_len128_l5.csv', 'feature-n-detector_len128_l7.csv', 'feature-n-detector_len128_l11.csv']
     # file_list = ['pixel_l5_scores.csv', 'pixel_l7_scores.csv', 'pixel_l11_scores.csv']
     # file_list = ['old-reacher/' + x for x in file_list]
-    file_list = ['franka-pixel.csv']
+    file_list = ['franka-detector.csv']
     file_list = [os.path.join(folder_dir, args.model, file) for file in file_list]
-    plot_data(file_list, data_type, action_type, head=50)
+    plot_data(file_list, data_type, action_type)
 
 
     #

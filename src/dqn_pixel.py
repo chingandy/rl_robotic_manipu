@@ -25,7 +25,7 @@ import  keras.backend.tensorflow_backend as K
 # sess = tf.Session(config=config)
 # K.set_session(sess)
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '7'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 20} )
 sess = tf.Session(config=config)
 keras.backend.set_session(sess)
